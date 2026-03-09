@@ -2,6 +2,12 @@
 
 {% block title %}字段配置 - 客户管理系统{% endblock %}
 
+{% block extra_css %}
+<style>
+.table tbody tr { --bs-table-bg: transparent !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-header">
     <h4><i class="bi bi-list-check me-2"></i>字段配置</h4>
@@ -157,9 +163,19 @@ function renderTable(data) {
         return;
     }
     
+    // 按排序值逆序排序
+    data.sort(function(a, b) { return (b.sort_order || 0) - (a.sort_order || 0); });
+    
     var html = '';
     data.forEach(function(item) {
-        html += '<tr ondblclick="editField(' + item.id + ')" style="cursor:pointer" title="双击编辑">';
+        var bgStyle = '';
+        if (item.color === 'bg-danger') bgStyle = 'background-color: #ffebee !important;';
+        else if (item.color === 'bg-primary') bgStyle = 'background-color: #e3f2fd !important;';
+        else if (item.color === 'bg-success') bgStyle = 'background-color: #e8f5e9 !important;';
+        else if (item.color === 'bg-warning') bgStyle = 'background-color: #fff3e0 !important;';
+        else if (item.color === 'bg-info') bgStyle = 'background-color: #e0f7fa !important;';
+        
+        html += '<tr ondblclick="editField(' + item.id + ')" style="cursor:pointer; ' + bgStyle + '" title="双击编辑">';
         html += '<td>' + item.id + '</td>';
         html += '<td>' + item.field_name + '</td>';
         html += '<td>' + item.field_value + '</td>';

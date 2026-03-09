@@ -1,33 +1,29 @@
 {% extends "base.html" %}
 
-{% block title %}店铺管理 - 客户管理系统{% endblock %}
+{% block title %}客户列表 - 客户管理系统{% endblock %}
+
+{% block extra_css %}
+{% endblock %}
 
 {% block content %}
 <div class="content-header d-flex justify-content-between align-items-center">
-    <h4 class="mb-0"><i class="bi bi-shop me-2"></i>店铺管理</h4>
+    <h4 class="mb-0"><i class="bi bi-shop me-2"></i>客户列表</h4>
     <button class="btn btn-primary" onclick="showAddModal()">
-        <i class="bi bi-plus-lg me-1"></i> 添加店铺
+        <i class="bi bi-plus-lg me-1"></i> 添加客户
     </button>
 </div>
 
 <div class="row mb-3">
-    <div class="col-md-2">
-        <select class="form-select" id="statusFilter" onchange="loadData(1)">
-            <option value="1" selected>营业中</option>
-            <option value="0">已歇业</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <select class="form-select" id="businessModelFilter" onchange="loadData(1)">
-            <option value="">全部</option>
-        </select>
-    </div>
     <div class="col-md-3">
         <div class="input-group">
-            <input type="text" class="form-control" id="searchInput" placeholder="搜索店铺...">
-            <button class="btn btn-outline-secondary" onclick="loadData(1)">
-                <i class="bi bi-search"></i>
-            </button>
+            <input type="text" class="form-control" id="searchInput" placeholder="搜索：店铺名称/电话/地址/拼音...">
+        </div>
+    </div>
+    <div class="col-md-2">
+        <input type="number" class="form-control" id="searchIdInput" placeholder="输入ID精确搜索">
+    </div>
+    <div class="col-md-7">
+        <div class="btn-group" role="group" id="businessModelFilter" style="flex-wrap: wrap;">
         </div>
     </div>
 </div>
@@ -39,61 +35,87 @@
                 <tr>
                     <th>ID</th>
                     <th>店铺名称</th>
-                    <th>经营模式</th>
-                    <th>联系人</th>
                     <th>电话</th>
                     <th>地址</th>
-                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>更改时间</th>
+                    <th>备注</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody id="tableBody"></tbody>
         </table>
     </div>
-    <div class="p-3">
+    <div class="d-flex justify-content-between align-items-center p-3">
+        <div class="text-muted" id="totalCount"></div>
         <nav>
-            <ul class="pagination justify-content-center mb-0" id="pagination"></ul>
+            <ul class="pagination justify-content-end mb-0" id="pagination"></ul>
         </nav>
     </div>
 </div>
 
 <!-- 添加/编辑弹窗 -->
 <div class="modal fade" id="shopModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">添加店铺</h5>
+                <h5 class="modal-title" id="modalTitle">添加客户</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="shopForm">
                     <input type="hidden" id="shopId">
+                    <h6 class="text-muted mb-3">基本信息</h6>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">店铺名称 *</label>
-                            <input type="text" class="form-control" id="shopName" required>
+                            <label class="form-label">店铺名称 <span style="color: red;">*</span></label>
+                            <input type="text" class="form-control" id="shopName" required onblur="validateShopName()">
+                            <div class="invalid-feedback" id="shopNameError"></div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">经营模式</label>
-                            <select class="form-select" id="businessModel">
-                                <option value="">请选择</option>
+                            <select class="form-select" id="businessModel" style="color: #333;">
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">联系人</label>
-                            <input type="text" class="form-control" id="contactPerson">
+                            <label class="form-label">电话</label>
+                            <input type="text" class="form-control" id="phone" onblur="validatePhone()">
+                            <div class="invalid-feedback" id="phoneError"></div>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">联系电话</label>
-                            <input type="text" class="form-control" id="contactPhone">
-                        </div>
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">地址</label>
-                            <input type="text" class="form-control" id="address">
-                        </div>
-                        <div class="col-md-12 mb-3">
                             <label class="form-label">备注</label>
-                            <textarea class="form-control" id="remark" rows="2"></textarea>
+                            <input type="text" class="form-control" id="remark">
+                        </div>
+                    </div>
+                    
+                    <h6 class="text-muted mb-3 mt-4">地址信息</h6>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">地址（粘贴完整地址后点击解析）</label>
+                            <div class="input-group">
+                                <textarea class="form-control" id="addressInput" rows="2" placeholder="请输入完整地址，如：天津市南开区大悦城3楼"></textarea>
+                                <button class="btn btn-outline-primary" type="button" onclick="parseAddress()">解析</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">大区</label>
+                            <input type="text" class="form-control" id="region" placeholder="" disabled style="background-color: #f5f5f5;">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">省份</label>
+                            <input type="text" class="form-control" id="province" placeholder="" disabled style="background-color: #f5f5f5;">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">市/县</label>
+                            <input type="text" class="form-control" id="city" placeholder="" disabled style="background-color: #f5f5f5;">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">区/县</label>
+                            <input type="text" class="form-control" id="district" placeholder="" disabled style="background-color: #f5f5f5;">
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">详细地址</label>
+                            <input type="text" class="form-control" id="detailAddress" placeholder="" disabled style="background-color: #f5f5f5;">
                         </div>
                     </div>
                 </form>
@@ -105,209 +127,610 @@
         </div>
     </div>
 </div>
+
+<!-- 下订单弹窗 -->
+<div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">下单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要为 <strong id="orderShopName"></strong> 下单吗？</p>
+                <input type="hidden" id="orderShopId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createOrder()">确认下单</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-var currentPage = 1;
-var pageSize = 12;
-var currentStatus = 1;
-var businessModelOptions = [];
+let businessModels = [];
+let businessModelColors = {};
+let defaultBusinessModel = '';
+let searchTimer = null;
 
-$(function() {
-    currentStatus = parseInt($('#statusFilter').val()) || 1;
-    loadBusinessModels();
-    loadData(1);
+$(document).ready(function() {
+    loadBusinessModels().then(function() {
+        loadData(1);
+    });
+    
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() {
+            loadData(1);
+        }, 500);
+    });
+    
+    document.getElementById('searchIdInput').addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() {
+            loadData(1);
+        }, 500);
+    });
 });
 
 function loadBusinessModels() {
-    $.get('/system/api/field/list?field_type=business_model', function(res) {
-        if (res.code === 0) {
-            businessModelOptions = res.data;
-            
-            var optionsHtml = '<option value="">请选择</option>';
-            res.data.forEach(function(item) {
-                optionsHtml += '<option value="' + item.field_name + '">' + item.field_name + '</option>';
-            });
-            $('#businessModel').html(optionsHtml);
-            $('#businessModelFilter').html('<option value="">全部</option>' + optionsHtml);
-            
-            if (res.data.length > 0) {
-                var defaultItem = res.data.find(function(item) { return item.is_default === 1; });
-                if (defaultItem) {
-                    $('#businessModel').val(defaultItem.field_name);
+    return fetch('/system/api/field/options?field_type=business_model')
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                const formSelect = document.getElementById('businessModel');
+                const items = data.data;
+                
+                let defaultItem = items.find(item => item.is_default == 1);
+                if (!defaultItem && items.length > 0) {
+                    defaultItem = items[0];
                 }
+                
+                if (defaultItem) {
+                    defaultBusinessModel = defaultItem.field_name;
+                }
+                
+                // 按排序值逆序排序
+                items.sort((a, b) => (b.sort_order || 0) - (a.sort_order || 0));
+                
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.field_name;
+                    option.textContent = item.field_name;
+                    formSelect.appendChild(option);
+                    
+                    const filterContainer = document.getElementById('businessModelFilter');
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-sm business-model-btn';
+                    btn.value = item.field_name;
+                    
+                    let btnStyle = 'padding: 8px 16px; font-size: 15px;';
+                    if (item.color && item.color !== '') {
+                        let borderColor = item.color === 'bg-danger' ? '#dc3545' : item.color === 'bg-primary' ? '#0d6efd' : item.color === 'bg-success' ? '#198754' : item.color === 'bg-warning' ? '#ffc107' : item.color === 'bg-info' ? '#0dcaf0' : '#333';
+                        btnStyle += `background-color: white; border: 2px solid ${borderColor}; color: ${borderColor};`;
+                    } else {
+                        btnStyle += 'background-color: white; border: 2px solid #333; color: #333;';
+                    }
+                    
+                    btn.style = btnStyle;
+                    btn.textContent = item.field_name;
+                    
+                    // 鼠标悬停效果
+                    btn.onmouseover = function() {
+                        let hoverStyle = 'padding: 8px 16px; font-size: 15px;';
+                        // 保持圆角
+                        const allBtns = document.querySelectorAll('.business-model-btn');
+                        const idx = Array.from(allBtns).indexOf(this);
+                        const total = allBtns.length;
+                        if (idx === 0) hoverStyle += 'border-radius: 25px 0 0 25px;';
+                        else if (idx === total - 1) hoverStyle += 'border-radius: 0 25px 25px 0;';
+                        
+                        let bgColor = item.color === 'bg-danger' ? '#ffebee' : item.color === 'bg-primary' ? '#cfe2ff' : item.color === 'bg-success' ? '#d1e7dd' : item.color === 'bg-warning' ? '#fff3cd' : item.color === 'bg-info' ? '#cff4fc' : '#6c757d';
+                        hoverStyle += `background-color: ${bgColor}; border: 2px solid ${bgColor}; color: black;`;
+                        this.style = hoverStyle;
+                    };
+                    
+                    // 鼠标移开恢复
+                    btn.onmouseout = function() {
+                        if (!this.classList.contains('clicked')) {
+                            let normalStyle = 'padding: 8px 16px; font-size: 15px;';
+                            // 恢复圆角
+                            const allBtns = document.querySelectorAll('.business-model-btn');
+                            const idx = Array.from(allBtns).indexOf(this);
+                            const total = allBtns.length;
+                            if (idx === 0) normalStyle += 'border-radius: 25px 0 0 25px;';
+                            else if (idx === total - 1) normalStyle += 'border-radius: 0 25px 25px 0;';
+                            
+                            if (item.color && item.color !== '') {
+                                let borderColor = item.color === 'bg-danger' ? '#dc3545' : item.color === 'bg-primary' ? '#0d6efd' : item.color === 'bg-success' ? '#198754' : item.color === 'bg-warning' ? '#ffc107' : item.color === 'bg-info' ? '#0dcaf0' : '#333';
+                                normalStyle += `background-color: white; border: 2px solid ${borderColor}; color: ${borderColor};`;
+                            } else {
+                                normalStyle += 'background-color: white; border: 2px solid #333; color: #333;';
+                            }
+                            this.style = normalStyle;
+                        }
+                        this.classList.remove('clicked');
+                    };
+                    
+                    btn.onclick = function() {
+                        document.querySelectorAll('.business-model-btn').forEach(b => b.classList.remove('clicked'));
+                        this.classList.add('clicked');
+                        
+                        const allBtns = document.querySelectorAll('.business-model-btn');
+                        const btnIndex = Array.from(allBtns).indexOf(this);
+                        const totalBtns = allBtns.length;
+                        
+                        document.querySelectorAll('.business-model-btn').forEach((b, index) => {
+                            b.classList.remove('active');
+                            const bValue = b.value;
+                            const originalItem = items.find(i => i.field_name === bValue);
+                            let restoreStyle = 'padding: 8px 16px; font-size: 15px;';
+                            if (index === 0) restoreStyle += 'border-radius: 25px 0 0 25px;';
+                            else if (index === totalBtns - 1) restoreStyle += 'border-radius: 0 25px 25px 0;';
+                            
+                            if (originalItem && originalItem.color && originalItem.color !== '') {
+                                let borderColor = originalItem.color === 'bg-danger' ? '#dc3545' : originalItem.color === 'bg-primary' ? '#0d6efd' : originalItem.color === 'bg-success' ? '#198754' : originalItem.color === 'bg-warning' ? '#ffc107' : originalItem.color === 'bg-info' ? '#0dcaf0' : '#333';
+                                restoreStyle += `background-color: white; border: 2px solid ${borderColor}; color: ${borderColor};`;
+                            } else {
+                                restoreStyle += 'background-color: white; border: 2px solid #333; color: #333;';
+                            }
+                            b.style = restoreStyle;
+                        });
+                        
+                        this.classList.add('active');
+                        let activeStyle = 'padding: 8px 16px; font-size: 15px;';
+                        if (btnIndex === 0) activeStyle += 'border-radius: 25px 0 0 25px;';
+                        else if (btnIndex === totalBtns - 1) activeStyle += 'border-radius: 0 25px 25px 0;';
+                        
+                        let bgColor = item.color === 'bg-danger' ? '#ffebee' : item.color === 'bg-primary' ? '#cfe2ff' : item.color === 'bg-success' ? '#d1e7dd' : item.color === 'bg-warning' ? '#fff3cd' : item.color === 'bg-info' ? '#cff4fc' : '#6c757d';
+                        activeStyle += `background-color: ${bgColor}; border: 2px solid ${bgColor}; color: black;`;
+                        this.style = activeStyle;
+                        loadData(1);
+                    };
+                    
+                    filterContainer.appendChild(btn);
+                });
+                
+                // 设置最后一个按钮的圆角
+                setTimeout(() => {
+                    const btns = document.querySelectorAll('.business-model-btn');
+                    if (btns.length > 1) {
+                        const lastBtn = btns[btns.length - 1];
+                        lastBtn.style.borderRadius = '0 25px 25px 0';
+                    }
+                }, 50);
+                
+                const filterContainer = document.getElementById('businessModelFilter');
+                const allBtn = document.createElement('button');
+                allBtn.type = 'button';
+                allBtn.className = 'btn btn-sm business-model-btn active clicked';
+                allBtn.style = 'padding: 8px 16px; border-radius: 25px 0 0 25px; font-size: 15px; background-color: #6c757d; border: 2px solid #333; color: white;';
+                allBtn.textContent = '全部';
+                allBtn.onclick = function() {
+                    document.querySelectorAll('.business-model-btn').forEach(b => {
+                        b.classList.remove('active', 'clicked');
+                    });
+                    allBtn.classList.add('active', 'clicked');
+                    allBtn.style = 'padding: 8px 16px; border-radius: 25px 0 0 25px; font-size: 15px; background-color: #6c757d; border: 2px solid #333; color: white;';
+                    loadData(1);
+                };
+                filterContainer.insertBefore(allBtn, filterContainer.firstChild);
+                
+                if (defaultBusinessModel) {
+                    formSelect.value = defaultBusinessModel;
+                }
+                
+                items.forEach(item => {
+                    if (item.color) {
+                        businessModelColors[item.field_name] = item.color;
+                    }
+                });
+                
+                businessModels = items.map(item => item.field_name);
             }
-        }
-    });
+        });
 }
 
 function loadData(page) {
-    currentPage = page;
-    var status = $('#statusFilter').val();
-    var businessModel = $('#businessModelFilter').val();
-    var search = $('#searchInput').val();
+    const search = document.getElementById('searchInput').value;
+    const searchId = document.getElementById('searchIdInput').value;
     
-    $.get('/shop/api/list', {
-        status: status,
-        business_model: businessModel,
-        search: search,
+    let businessModel = '';
+    const activeBtn = document.querySelector('.business-model-btn.active');
+    if (activeBtn && activeBtn.textContent !== '全部') {
+        businessModel = activeBtn.value;
+    }
+    
+    const params = new URLSearchParams({
+        status: 1,
         page: page,
-        limit: pageSize
-    }, function(res) {
-        if (res.code === 0) {
-            renderTable(res.data);
-            renderPagination(res.total);
-        }
+        limit: 12,
+        search: search,
+        search_id: searchId,
+        business_model: businessModel
     });
+    
+    fetch(`/shop/api/list?${params}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                document.getElementById('totalCount').textContent = `共 ${data.count} 个店铺`;
+                renderTable(data.data);
+                renderPagination(data.count, page);
+            }
+        });
 }
 
 function renderTable(data) {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    
     if (data.length === 0) {
-        $('#tableBody').html('<tr><td colspan="8" class="text-center text-muted py-4">暂无数据</td></tr>');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>';
         return;
     }
     
-    var html = '';
-    data.forEach(function(item) {
-        // 获取经营模式对应的颜色
-        var modelColor = '';
-        var modelName = item.business_model || '';
-        if (businessModelOptions && businessModelOptions.length > 0) {
-            var opt = businessModelOptions.find(function(x) { return x.field_name === modelName; });
-            if (opt && opt.color) {
-                modelColor = getModelColor(opt.color);
-            }
-        }
-        var textColor = modelColor ? 'color: #fff;' : '';
-        var rowStyle = modelColor ? 'background-color: ' + modelColor + ';' : '';
+    data.forEach(item => {
+        const addressParts = [item.region, item.province, item.city, item.district, item.address].filter(Boolean);
+        const address = addressParts.join(' ');
         
-        html += '<tr style="' + rowStyle + '">';
-        html += '<td>' + item.id + '</td>';
-        html += '<td style="' + textColor + '"><strong>' + item.shop_name + '</strong></td>';
-        html += '<td style="' + textColor + '">' + modelName + '</td>';
-        html += '<td style="' + textColor + '">' + (item.contact_person || '-') + '</td>';
-        html += '<td style="' + textColor + '">' + (item.contact_phone || '-') + '</td>';
-        html += '<td style="' + textColor + '">' + (item.address || '-') + '</td>';
-        html += '<td>' + (item.status === 1 ? '<span class="badge bg-success">营业中</span>' : '<span class="badge bg-secondary">已歇业</span>') + '</td>';
-        html += '<td>';
-        html += '<button class="btn btn-sm btn-outline-primary me-1" onclick="createOrder(' + item.id + ', \'' + item.shop_name + '\', \'' + (item.business_model || '') + '\')"><i class="bi bi-cart-plus"></i> 下单</button>';
-        html += '<button class="btn btn-sm btn-outline-primary me-1" onclick="editShop(' + item.id + ')"><i class="bi bi-pencil"></i></button>';
-        html += '<button class="btn btn-sm btn-outline-danger" onclick="deleteShop(' + item.id + ')"><i class="bi bi-trash"></i></button>';
-        html += '</td></tr>';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.id}</td>
+            <td>${item.shop_name || ''}</td>
+            <td>${item.phone || ''}</td>
+            <td>${address}</td>
+            <td>${item.created_at || ''}</td>
+            <td>${item.updated_at || ''}</td>
+            <td>${item.remark || ''}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="showEditModal(${item.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStatus(${item.id}, ${item.status})">
+                    <i class="bi bi-${item.status === 1 ? 'pause' : 'play'}-fill"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="showOrderModal(${item.id}, '${item.shop_name}')">
+                    <i class="bi bi-cart-plus"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
     });
-    $('#tableBody').html(html);
 }
 
-function renderPagination(total) {
-    var totalPages = Math.ceil(total / pageSize);
-    if (totalPages <= 1) {
-        $('#pagination').html('');
-        return;
+function renderPagination(total, currentPage) {
+    const totalPages = Math.ceil(total / 12);
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    if (totalPages <= 1) return;
+    
+    if (currentPage > 1) {
+        pagination.innerHTML += `<li class="page-item"><a class="page-link" href="javascript:loadData(${currentPage - 1})">上一页</a></li>`;
     }
     
-    var html = '';
-    html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '">';
-    html += '<a class="page-link" href="javascript:void(0)" onclick="loadData(' + (currentPage - 1) + ')">上一页</a></li>';
-    
-    for (var i = 1; i <= totalPages; i++) {
-        html += '<li class="page-item ' + (currentPage === i ? 'active' : '') + '">';
-        html += '<a class="page-link" href="javascript:void(0)" onclick="loadData(' + i + ')">' + i + '</a></li>';
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            pagination.innerHTML += `<li class="page-item active"><a class="page-link" href="javascript:void(0)">${i}</a></li>`;
+        } else if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            pagination.innerHTML += `<li class="page-item"><a class="page-link" href="javascript:loadData(${i})">${i}</a></li>`;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            pagination.innerHTML += `<li class="page-item"><a class="page-link">...</a></li>`;
+        }
     }
     
-    html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '">';
-    html += '<a class="page-link" href="javascript:void(0)" onclick="loadData(' + (currentPage + 1) + ')">下一页</a></li>';
-    
-    $('#pagination').html(html);
+    if (currentPage < totalPages) {
+        pagination.innerHTML += `<li class="page-item"><a class="page-link" href="javascript:loadData(${currentPage + 1})">下一页</a></li>`;
+    }
 }
 
 function showAddModal() {
-    $('#shopId').val('');
-    $('#shopForm')[0].reset();
-    loadBusinessModels();
-    new bootstrap.Modal($('#shopModal')).show();
+    document.getElementById('modalTitle').textContent = '添加客户';
+    document.getElementById('shopId').value = '';
+    document.getElementById('shopForm').reset();
+    document.getElementById('addressInput').value = '';
+    document.getElementById('region').value = '';
+    document.getElementById('province').value = '';
+    document.getElementById('city').value = '';
+    document.getElementById('district').value = '';
+    document.getElementById('detailAddress').value = '';
+    
+    // 清空验证错误
+    document.getElementById('shopName').classList.remove('is-invalid');
+    document.getElementById('shopNameError').textContent = '';
+    document.getElementById('phone').classList.remove('is-invalid');
+    document.getElementById('phoneError') ? document.getElementById('phoneError').textContent = '' : null;
+    
+    if (defaultBusinessModel) {
+        document.getElementById('businessModel').value = defaultBusinessModel;
+    }
+    
+    $('#shopModal').modal('show');
 }
 
-function editShop(id) {
-    $.get('/shop/api/' + id, function(res) {
-        if (res.code === 0) {
-            var shop = res.data;
-            $('#shopId').val(shop.id);
-            $('#shopName').val(shop.shop_name);
-            $('#businessModel').val(shop.business_model || '');
-            $('#contactPerson').val(shop.contact_person || '');
-            $('#contactPhone').val(shop.contact_phone || '');
-            $('#address').val(shop.address || '');
-            $('#remark').val(shop.remark || '');
-            $('#modalTitle').text('编辑店铺');
-            new bootstrap.Modal($('#shopModal')).show();
+function showEditModal(id) {
+    fetch(`/shop/api/get/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                const shop = data.data;
+                document.getElementById('modalTitle').textContent = '编辑客户';
+                document.getElementById('shopId').value = shop.id;
+                document.getElementById('shopName').value = shop.shop_name || '';
+                document.getElementById('businessModel').value = shop.business_model || '';
+                document.getElementById('phone').value = shop.phone || '';
+                document.getElementById('remark').value = shop.remark || '';
+                
+                // 清空验证错误
+                document.getElementById('shopName').classList.remove('is-invalid');
+                const shopNameError = document.getElementById('shopNameError');
+                if (shopNameError) shopNameError.textContent = '';
+                document.getElementById('phone').classList.remove('is-invalid');
+                const phoneError = document.getElementById('phoneError');
+                if (phoneError) phoneError.textContent = '';
+                
+                // 填充地址
+                const fullAddr = [shop.region, shop.province, shop.city, shop.district, shop.address].filter(Boolean).join('');
+                document.getElementById('addressInput').value = fullAddr;
+                document.getElementById('region').value = shop.region || '';
+                document.getElementById('province').value = shop.province || '';
+                document.getElementById('city').value = shop.city || '';
+                document.getElementById('district').value = shop.district || '';
+                document.getElementById('detailAddress').value = shop.address || '';
+                $('#shopModal').modal('show');
+            }
+        });
+}
+
+// 解析地址函数
+function parseAddress() {
+    const address = document.getElementById('addressInput').value.trim();
+    if (!address) {
+        alert('请输入地址');
+        return;
+    }
+    
+    // 调用后端智能解析接口
+    fetch('/shop/api/parse_address', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({address: address})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.code === 0) {
+            document.getElementById('region').value = data.data.region || '';
+            document.getElementById('province').value = data.data.province || '';
+            document.getElementById('city').value = data.data.city || '';
+            document.getElementById('district').value = data.data.district || '';
+            document.getElementById('detailAddress').value = data.data.detail || '';
+        } else {
+            alert(data.msg || '地址解析失败');
+        }
+    })
+    .catch(err => {
+        alert('地址解析失败，请重试');
+    });
+}
+
+// 验证店铺名称
+function validateShopName() {
+    const shopNameInput = document.getElementById('shopName');
+    const shopName = shopNameInput.value.trim();
+    const errorDiv = document.getElementById('shopNameError');
+    
+    // 重置状态
+    shopNameInput.classList.remove('is-invalid');
+    errorDiv.textContent = '';
+    
+    if (!shopName) {
+        return true;
+    }
+    
+    // 检查长度 4-15
+    if (shopName.length < 4 || shopName.length > 15) {
+        shopNameInput.classList.add('is-invalid');
+        errorDiv.textContent = '店铺名称长度必须为4-15个字符';
+        return false;
+    }
+    
+    // 检查只能包含字母、数字、汉字
+    if (!/^[a-zA-Z0-9\u4e00-\u9fa5]+$/.test(shopName)) {
+        shopNameInput.classList.add('is-invalid');
+        errorDiv.textContent = '店铺名称只能包含字母、数字和汉字';
+        return false;
+    }
+    
+    // 检查是否重名（异步请求）
+    const shopId = document.getElementById('shopId').value;
+    fetch('/shop/api/check_name', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: shopName, id: shopId})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.code === 1) {
+            shopNameInput.classList.add('is-invalid');
+            errorDiv.textContent = '店铺名称已存在';
         }
     });
+    
+    return true;
+}
+
+// 验证电话号码
+function validatePhone() {
+    const phoneInput = document.getElementById('phone');
+    const phone = phoneInput.value.trim();
+    
+    // 如果为空，不验证
+    if (!phone) {
+        phoneInput.classList.remove('is-invalid');
+        return true;
+    }
+    
+    // 验证手机号格式（中国大陆手机号）
+    let phoneError = document.getElementById('phoneError');
+    if (!phoneError) {
+        // 创建错误提示元素
+        phoneError = document.createElement('div');
+        phoneError.className = 'invalid-feedback';
+        phoneError.id = 'phoneError';
+        phoneInput.parentNode.appendChild(phoneError);
+    }
+    
+    // 手机号正则：1开头的11位数字
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+        phoneInput.classList.add('is-invalid');
+        phoneError.textContent = '请输入正确的手机号码';
+        return false;
+    }
+    
+    phoneInput.classList.remove('is-invalid');
+    phoneError.textContent = '';
+    return true;
 }
 
 function saveShop() {
-    var id = $('#shopId').val();
-    var data = {
-        shop_name: $('#shopName').val(),
-        business_model: $('#businessModel').val(),
-        contact_person: $('#contactPerson').val(),
-        contact_phone: $('#contactPhone').val(),
-        address: $('#address').val(),
-        remark: $('#remark').val(),
-        status: 1
-    };
+    // 先验证店铺名称
+    const shopNameInput = document.getElementById('shopName');
+    const shopName = shopNameInput.value.trim();
+    const errorDiv = document.getElementById('shopNameError');
     
-    var url = id ? '/shop/api/update/' + id : '/shop/api/add';
-    var method = id ? 'PUT' : 'POST';
+    // 重置状态
+    shopNameInput.classList.remove('is-invalid');
+    errorDiv.textContent = '';
     
-    $.ajax({
-        url: url,
-        type: method,
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function(res) {
-            if (res.code === 0) {
-                $('#shopModal').modal('hide');
-                loadData(currentPage);
-            } else {
-                alert(res.msg);
-            }
+    // 验证
+    if (!shopName) {
+        shopNameInput.classList.add('is-invalid');
+        errorDiv.textContent = '请输入店铺名称';
+        return;
+    }
+    
+    if (shopName.length < 4 || shopName.length > 15) {
+        shopNameInput.classList.add('is-invalid');
+        errorDiv.textContent = '店铺名称长度必须为4-15个字符';
+        return;
+    }
+    
+    if (!/^[a-zA-Z0-9\u4e00-\u9fa5]+$/.test(shopName)) {
+        shopNameInput.classList.add('is-invalid');
+        errorDiv.textContent = '店铺名称只能包含字母、数字和汉字';
+        return;
+    }
+    
+    // 验证电话号码
+    if (!validatePhone()) {
+        return;
+    }
+    
+    // 验证地址：要么全为空，要么全有数据
+    const region = document.getElementById('region').value;
+    const province = document.getElementById('province').value;
+    const city = document.getElementById('city').value;
+    const district = document.getElementById('district').value;
+    const detail = document.getElementById('detailAddress').value;
+    
+    const hasAddress = region || province || city || district || detail;
+    const allAddressFilled = region && province && city && (detail || district);
+    
+    if (hasAddress && !allAddressFilled) {
+        alert('地址信息不完整，请填写完整地址或留空');
+        return;
+    }
+    
+    // 检查是否重名（同步验证）
+    const shopId = document.getElementById('shopId').value;
+    let isDuplicated = false;
+    fetch('/shop/api/check_name', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: shopName, id: shopId})
+    })
+    .then(res => res.json())
+    .then(checkData => {
+        if (checkData.code === 1) {
+            shopNameInput.classList.add('is-invalid');
+            errorDiv.textContent = '店铺名称已存在';
+            return Promise.reject('店铺名称已存在');
         }
+        
+        // 验证通过，提交表单
+        const data = {
+            shop_name: shopName,
+            business_model: document.getElementById('businessModel').value,
+            phone: document.getElementById('phone').value,
+            remark: document.getElementById('remark').value,
+            region: document.getElementById('region').value,
+            province: document.getElementById('province').value,
+            city: document.getElementById('city').value,
+            district: document.getElementById('district').value,
+            detail: document.getElementById('detailAddress').value,
+            address: document.getElementById('detailAddress').value
+        };
+        
+        const url = shopId ? `/shop/api/edit/${shopId}` : '/shop/api/add';
+        const method = shopId ? 'PUT' : 'POST';
+        
+        return fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.code === 0) {
+            $('#shopModal').modal('hide');
+            loadData(1);
+        } else {
+            alert(data.msg);
+        }
+    })
+    .catch(err => {
+        // 静默处理，不显示额外错误
     });
 }
 
-function deleteShop(id) {
-    if (!confirm('确定要删除该店铺吗？')) return;
+function toggleStatus(id, currentStatus) {
+    const newStatus = currentStatus === 1 ? 0 : 1;
+    const action = newStatus === 1 ? '启用' : '停用';
     
-    $.ajax({
-        url: '/shop/api/delete/' + id,
-        type: 'DELETE',
-        success: function(res) {
-            if (res.code === 0) {
-                loadData(currentPage);
+    if (confirm(`确定要${action}该客户吗？`)) {
+        fetch(`/shop/api/toggle_status/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: newStatus})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                loadData(1);
             } else {
-                alert(res.msg);
+                alert(data.msg);
             }
-        }
-    });
+        });
+    }
 }
 
-function createOrder(shopId, shopName, businessModel) {
-    window.location.href = '/shop/?backToOrders=' + shopId + '&action=create';
+function showOrderModal(id, name) {
+    document.getElementById('orderShopId').value = id;
+    document.getElementById('orderShopName').textContent = name;
+    $('#orderModal').modal('show');
 }
 
-function getModelColor(colorClass) {
-    var colors = {
-        'bg-primary': '#0d6efd',
-        'bg-success': '#198754',
-        'bg-info': '#0dcaf0',
-        'bg-warning': '#ffc107',
-        'bg-danger': '#dc3545',
-        'bg-purple': '#9b59b6',
-        'bg-orange': '#e67e22',
-        'bg-cyan': '#17a2b8'
-    };
-    return colors[colorClass] || '';
+function createOrder() {
+    const shopId = document.getElementById('orderShopId').value;
+    $('#orderModal').modal('hide');
+    window.location.href = `/order/?shop_id=${shopId}`;
 }
 </script>
 {% endblock %}

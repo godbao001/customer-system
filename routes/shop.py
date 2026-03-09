@@ -240,6 +240,29 @@ def api_delete(id):
         db.session.rollback()
         return jsonify({'code': 1, 'msg': f'删除失败: {str(e)}'})
 
+# 检查店铺名称API
+@shop_bp.route('/api/check_name', methods=['POST'])
+def api_check_name():
+    """检查店铺名称是否重复"""
+    data = request.json
+    name = data.get('name', '').strip()
+    shop_id = data.get('id', '')
+    
+    if not name:
+        return jsonify({'code': 0, 'msg': 'success'})
+    
+    # 查询是否重名
+    query = Shop.query.filter_by(shop_name=name, status=1)
+    if shop_id:
+        query = query.filter(Shop.id != int(shop_id))
+    
+    exists = query.first()
+    
+    if exists:
+        return jsonify({'code': 1, 'msg': '店铺名称已存在'})
+    
+    return jsonify({'code': 0, 'msg': 'success'})
+
 # 地址解析API
 @shop_bp.route('/api/parse_address', methods=['POST'])
 def api_parse_address():

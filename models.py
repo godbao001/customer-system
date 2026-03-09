@@ -86,8 +86,9 @@ class ProductCategory(db.Model):
     group_id = db.Column(db.Integer, default=0, comment='所属分类组')
     parent_id = db.Column(db.Integer, default=0, comment='父分类ID')
     sort_order = db.Column(db.Integer, default=0, comment='排序')
-    status = db.Column(db.Integer, default=1, comment='状态: 1=正常, 0=停用')
     is_default = db.Column(db.Integer, default=0, comment='是否为默认分类: 1=是, 0=否')
+    color = db.Column(db.String(50), default='', comment='颜色')
+    status = db.Column(db.Integer, default=1, comment='状态: 1=正常, 0=停用')
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
