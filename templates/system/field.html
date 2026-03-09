@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}字段配置 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h4><i class="bi bi-list-check me-2"></i>字段配置</h4>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <ul class="nav nav-tabs" id="fieldTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="express-method-tab" data-bs-toggle="tab" data-bs-target="#express-method" type="button" onclick="loadFields('express_method')">
+                    发货方式
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="business-model-tab" data-bs-toggle="tab" data-bs-target="#business-model" type="button" onclick="loadFields('business_model')">
+                    经营模式
+                </button>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="mb-0" id="fieldTitle">发货方式</h5>
+        <button class="btn btn-success" onclick="showAddModal()">
+            <i class="bi bi-plus-circle me-1"></i> 添加选项
+        </button>
+    </div>
+    <div class="table-responsive p-3">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>显示名称</th>
+                    <th>值</th>
+                    <th>排序</th>
+                    <th>默认</th>
+                    <th>颜色</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">加载中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal fade" id="fieldModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加选项</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="fieldForm">
+                    <input type="hidden" id="fieldId">
+                    <input type="hidden" id="fieldType" value="express_method">
+                    <div class="mb-3">
+                        <label class="form-label">显示名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="fieldName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">值</label>
+                        <input type="text" class="form-control" id="fieldValue" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">排序</label>
+                        <input type="number" class="form-control" id="fieldSort" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="fieldIsDefault" value="1">
+                            <label class="form-check-label" for="fieldIsDefault">设为默认选项</label>
+                        </div>
+                        <div class="form-text">使用该字段时，默认选中此项</div>
+                    </div>
+                    <div class="mb-3" id="colorField" style="display:none">
+                        <label class="form-label">标记颜色</label>
+                        <div class="d-flex gap-2">
+                            <div class="color-option" data-color="" style="border:2px solid #dee2e6;" onclick="selectColor('')"></div>
+                            <div class="color-option bg-primary text-white" data-color="bg-primary" onclick="selectColor('bg-primary')"></div>
+                            <div class="color-option bg-success text-white" data-color="bg-success" onclick="selectColor('bg-success')"></div>
+                            <div class="color-option bg-info text-white" data-color="bg-info" onclick="selectColor('bg-info')"></div>
+                            <div class="color-option bg-warning text-dark" data-color="bg-warning" onclick="selectColor('bg-warning')"></div>
+                            <div class="color-option bg-danger text-white" data-color="bg-danger" onclick="selectColor('bg-danger')"></div>
+                            <div class="color-option bg-purple text-white" data-color="bg-purple" onclick="selectColor('bg-purple')"></div>
+                            <div class="color-option bg-orange text-white" data-color="bg-orange" onclick="selectColor('bg-orange')"></div>
+                            <div class="color-option bg-cyan text-white" data-color="bg-cyan" onclick="selectColor('bg-cyan')"></div>
+                            <div class="color-option bg-light text-dark" data-color="bg-light" onclick="selectColor('bg-light')" style="background:#f8f9fa;"></div>
+                            <div class="color-option" data-color="white" style="background:#ffffff; border:1px solid #dee2e6;" onclick="selectColor('white')"></div>
+                            <div class="color-option" data-color="text-white-50" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="selectColor('text-white-50')"></div>
+                            <input type="hidden" id="fieldColor" value="">
+                        </div>
+                        <style>
+                            .color-option { width: 30px; height: 30px; cursor: pointer; border-radius: 4px; display: inline-block; }
+                            .color-option.selected { border: 2px solid #000 !important; }
+                        </style>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveField()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var currentFieldType = 'express_method';
+
+$(function() {
+    loadFields('express_method');
+    
+    // 经营模式显示颜色字段
+    $('#business-model-tab').click(function() {
+        $('#colorField').show();
+    });
+    $('#express-method-tab').click(function() {
+        $('#colorField').hide();
+    });
+});
+
+function selectColor(color) {
+    $('#fieldColor').val(color);
+    $('.color-option').removeClass('selected');
+    $('.color-option[data-color="' + color + '"]').addClass('selected');
+}
+
+function loadFields(fieldType) {
+    currentFieldType = fieldType;
+    $('#fieldType').val(fieldType);
+    $('#fieldTitle').text(fieldType === 'express_method' ? '发货方式' : '经营模式');
+    
+    $.get('/system/api/field/list?field_type=' + fieldType, function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+        }
+    });
+}
+
+function renderTable(data) {
+    if (data.length === 0) {
+        $('#tableBody').html('<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    var html = '';
+    data.forEach(function(item) {
+        html += '<tr ondblclick="editField(' + item.id + ')" style="cursor:pointer" title="双击编辑">';
+        html += '<td>' + item.id + '</td>';
+        html += '<td>' + item.field_name + '</td>';
+        html += '<td>' + item.field_value + '</td>';
+        html += '<td>' + item.sort_order + '</td>';
+        html += '<td>' + (item.is_default === 1 ? '<span class="badge bg-warning">默认</span>' : '-') + '</td>';
+        html += '<td>' + (item.color ? '<span class="badge ' + item.color + '">' + item.color + '</span>' : '-') + '</td>';
+        html += '<td>';
+        html += '<button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); editField(' + item.id + ')"><i class="bi bi-pencil"></i></button>';
+        html += '<button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteField(' + item.id + ')"><i class="bi bi-trash"></i></button>';
+        html += '</td></tr>';
+    });
+    $('#tableBody').html(html);
+}
+
+function showAddModal() {
+    $('#fieldId').val('');
+    $('#fieldName').val('');
+    $('#fieldValue').val('');
+    $('#fieldSort').val(0);
+    $('#fieldIsDefault').prop('checked', false);
+    selectColor('');
+    $('#modalTitle').text('添加选项');
+    new bootstrap.Modal($('#fieldModal')).show();
+}
+
+function editField(id) {
+    $.get('/system/api/field/list?field_type=' + currentFieldType, function(res) {
+        if (res.code === 0) {
+            var item = res.data.find(function(x) { return x.id === id; });
+            if (item) {
+                $('#fieldId').val(item.id);
+                $('#fieldName').val(item.field_name);
+                $('#fieldValue').val(item.field_value);
+                $('#fieldSort').val(item.sort_order);
+                $('#fieldIsDefault').prop('checked', item.is_default === 1);
+                selectColor(item.color || '');
+                $('#modalTitle').text('编辑选项');
+                new bootstrap.Modal($('#fieldModal')).show();
+            }
+        }
+    });
+}
+
+function saveField() {
+    var id = $('#fieldId').val();
+    var data = {
+        id: id ? parseInt(id) : null,
+        field_type: currentFieldType,
+        field_name: $('#fieldName').val(),
+        field_value: $('#fieldValue').val(),
+        sort_order: parseInt($('#fieldSort').val()) || 0,
+        is_default: $('#fieldIsDefault').is(':checked') ? 1 : 0,
+        color: currentFieldType === 'business_model' ? $('#fieldColor').val() : ''
+    };
+    
+    $.ajax({
+        url: '/system/api/field/save',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                $('#fieldModal').modal('hide');
+                loadFields(currentFieldType);
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+function deleteField(id) {
+    if (!confirm('确定要删除该选项吗？')) return;
+    
+    $.ajax({
+        url: '/system/api/field/delete/' + id,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadFields(currentFieldType);
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

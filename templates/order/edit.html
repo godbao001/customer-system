@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block title %}修改订单 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">
+        <i class="bi bi-pencil me-2"></i>修改订单
+    </h4>
+    <div>
+        <a href="#" class="btn btn-outline-secondary btn-sm" id="backBtn">
+            <i class="bi bi-arrow-left"></i> 返回
+        </a>
+    </div>
+</div>
+
+<!-- 第一行：快递信息 + 选择分类 并列 -->
+<div class="row mb-3">
+    <!-- 快递信息 -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0"><i class="bi bi-truck"></i> 快递信息</h5>
+            </div>
+            <div class="p-3">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">门店地址</label>
+                        <input type="text" class="form-control" id="expressShopAddress" value="{{ order.express_shop_address or '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">门店电话</label>
+                        <input type="text" class="form-control" id="expressShopPhone" value="{{ order.express_shop_phone or '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">快递方式</label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="express_method" id="express1" value="顺丰快递" {% if order.express_method == '顺丰快递' %}checked{% endif %}>
+                                <label class="form-check-label" for="express1">顺丰快递</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="express_method" id="express2" value="自提" {% if order.express_method == '自提' %}checked{% endif %}>
+                                <label class="form-check-label" for="express2">自提</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="express_method" id="express3" value="送货" {% if order.express_method == '送货' %}checked{% endif %}>
+                                <label class="form-check-label" for="express3">送货</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="express_method" id="express4" value="滴滴" {% if order.express_method == '滴滴' %}checked{% endif %}>
+                                <label class="form-check-label" for="express4">滴滴</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">快递费类型</label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="express_fee_type" id="fee1" value="寄付" {% if order.express_fee_type == '寄付' %}checked{% endif %}>
+                                <label class="form-check-label" for="fee1">寄付</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="express_fee_type" id="fee2" value="到付" {% if order.express_fee_type == '到付' %}checked{% endif %}>
+                                <label class="form-check-label" for="fee2">到付</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">订单备注</label>
+                        <textarea class="form-control" id="orderRemark" rows="2">{{ order.remark or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 选择分类 -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">选择分类</h5>
+                <span id="selectedCategoryTags"></span>
+            </div>
+            <div class="p-3" style="max-height: 250px; overflow-y: auto;" id="categoryGroupList">
+                <div class="text-muted">加载中...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 第二行：可选产品 + 已选产品 并列 -->
+<div class="row">
+    <!-- 可选产品 -->
+    <div class="col-md-6">
+        <div class="table-card mb-3">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">可选产品</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="setDisplayMode('card')">卡片</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="setDisplayMode('table')">表格</button>
+                </div>
+            </div>
+            <div class="p-3 border-bottom">
+                <input type="text" class="form-control" id="productSearch" placeholder="搜索产品..." oninput="filterProducts()">
+            </div>
+            <div class="card-body" style="max-height: 350px; overflow-y: auto;" id="productListArea"></div>
+        </div>
+    </div>
+    
+    <!-- 已选产品 -->
+    <div class="col-md-6">
+        <div class="table-card mb-3">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">已选产品</h5>
+                <small class="text-muted">共 <span id="selectedCount">0</span> 项</small>
+            </div>
+            <div class="card-body" style="max-height: 350px; overflow-y: auto;" id="selectedProductsArea">
+                <div class="text-muted text-center py-4">加载中...</div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>订单总金额：¥<span id="orderTotalAmount" class="text-primary fs-5">0.00</span></strong>
+            </div>
+            <button class="btn btn-primary btn-lg" onclick="saveOrder()">
+                <i class="bi bi-save"></i> 保存修改
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var orderId = {{ order.id }};
+var shopId = {{ order.shop_id }};
+var selectedProducts = [];
+var allProducts = [];
+var categoryGroups = [];
+var selectedCategoryMap = {};
+var displayMode = 'card';
+
+$(function() {
+    // 返回按钮
+    var urlParams = new URLSearchParams(window.location.search);
+    var fromShop = urlParams.get('from_shop');
+    var fromStatus = urlParams.get('from_status');
+    if (fromShop) {
+        $('#backBtn').attr('href', '/order/detail/' + orderId + '?from_shop=' + fromShop);
+    } else if (fromStatus) {
+        $('#backBtn').attr('href', '/order/detail/' + orderId + '?from_status=' + fromStatus);
+    } else {
+        $('#backBtn').attr('href', '/order/detail/' + orderId);
+    }
+    
+    loadOrderItems();
+    loadCategoryGroupsAndProducts();
+});
+
+function loadOrderItems() {
+    $.get('/order/api/items/' + orderId, function(res) {
+        if (res.code === 0) {
+            selectedProducts = res.data.map(function(item, idx) {
+                return {
+                    itemIndex: idx,
+                    product_id: item.product_id,
+                    product_name: item.product_name,
+                    price: item.price,
+                    width: item.width,
+                    height: item.height,
+                    original_width: item.original_width || item.width,
+                    original_height: item.original_height || item.height,
+                    quantity: item.quantity,
+                    subtotal: item.subtotal,
+                    remark: item.remark || ''
+                };
+            });
+            renderSelectedProducts();
+        }
+    });
+}
+
+function loadCategoryGroupsAndProducts() {
+    // 加载分类组
+    $.get('/product/api/category/tree', function(res) {
+        if (res.code === 0) {
+            categoryGroups = res.data;
+            
+            // 初始化分类选中状态（默认全部）
+            categoryGroups.forEach(function(group) {
+                selectedCategoryMap[group.group_id] = null;
+            });
+            
+            renderCategoryGroups();
+            renderSelectedCategories();
+        }
+    });
+    
+    // 加载产品
+    $.get('/product/api/list', {
+        status: 1,
+        sales_status: 1,
+        page: 1,
+        limit: 1000
+    }, function(res) {
+        if (res.code === 0) {
+            allProducts = res.data;
+            renderFilteredProducts();
+        }
+    });
+}
+
+function renderCategoryGroups() {
+    var html = '';
+    if (categoryGroups.length === 0) {
+        $('#categoryGroupList').html('<div class="text-muted">暂无分类组</div>');
+        return;
+    }
+    
+    categoryGroups.forEach(function(group) {
+        var currentSelection = selectedCategoryMap[group.group_id];
+        
+        html += '<div class="mb-2 d-flex align-items-center">';
+        html += '<span class="fw-bold text-primary" style="min-width: 80px;">' + group.group_name + '</span>';
+        
+        if (group.categories && group.categories.length > 0) {
+            var isAllSelected = currentSelection === null || currentSelection === undefined;
+            html += '<div class="form-check form-check-inline">';
+            html += '<input class="form-check-input" type="radio" name="cat_' + group.group_id + '" id="cat_all_' + group.group_id + '" ' + (isAllSelected ? 'checked' : '') + ' onchange="selectCategory(' + group.group_id + ', null)">';
+            html += '<label class="form-check-label small fw-bold" style="min-width: 28px;cursor:pointer;" for="cat_all_' + group.group_id + '">全部</label>';
+            html += '</div>';
+            
+            group.categories.forEach(function(cat) {
+                var isSelected = currentSelection === cat.id;
+                html += '<div class="form-check form-check-inline">';
+                html += '<input class="form-check-input" type="radio" name="cat_' + group.group_id + '" id="cat_' + cat.id + '" ' + (isSelected ? 'checked' : '') + ' onchange="selectCategory(' + group.group_id + ', ' + cat.id + ')">';
+                html += '<label class="form-check-label small" style="cursor:pointer;" for="cat_' + cat.id + '">' + cat.category_name + '</label>';
+                html += '</div>';
+            });
+        }
+        
+        html += '</div><hr>';
+    });
+    $('#categoryGroupList').html(html);
+}
+
+function selectCategory(groupId, categoryId) {
+    selectedCategoryMap[groupId] = categoryId;
+    renderCategoryGroups();
+    renderSelectedCategories();
+    renderFilteredProducts();
+}
+
+function renderSelectedCategories() {
+    var tagsArea = $('#selectedCategoryTags');
+    
+    var selectedHtml = '';
+    var hasSelection = false;
+    
+    categoryGroups.forEach(function(group) {
+        var catId = selectedCategoryMap[group.group_id];
+        if (catId !== null && catId !== undefined) {
+            hasSelection = true;
+            var cat = group.categories.find(function(c) { return c.id === catId; });
+            var catName = cat ? cat.category_name : '';
+            selectedHtml += '<span class="badge bg-primary me-1" style="cursor:pointer;" onclick="selectCategory(' + group.group_id + ', null)">' + group.group_name + ': ' + catName + ' <span style="cursor:pointer;margin-left:3px;" onclick="selectCategory(' + group.group_id + ', null)">×</span></span>';
+        }
+    });
+    
+    if (hasSelection) {
+        tagsArea.html(selectedHtml);
+    } else {
+        tagsArea.html('');
+    }
+}
+
+function filterProducts() { renderFilteredProducts(); }
+function setDisplayMode(m) { displayMode = m; renderSelectedProducts(); }
+
+function renderFilteredProducts() {
+    var search = $('#productSearch').val().toLowerCase();
+    
+    var filteredProducts = allProducts.filter(function(product) {
+        // 搜索过滤
+        if (search && !product.product_name.toLowerCase().includes(search)) {
+            return false;
+        }
+        
+        // 分类过滤
+        if (categoryGroups.length === 0) {
+            return true;
+        }
+        
+        if (!product.categories || product.categories.length === 0) {
+            for (var i = 0; i < categoryGroups.length; i++) {
+                var group = categoryGroups[i];
+                var selectedCatId = selectedCategoryMap[group.group_id];
+                if (selectedCatId !== null && selectedCatId !== undefined) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        for (var i = 0; i < categoryGroups.length; i++) {
+            var group = categoryGroups[i];
+            var selectedCatId = selectedCategoryMap[group.group_id];
+            
+            if (selectedCatId === null || selectedCatId === undefined) {
+                continue;
+            }
+            
+            var productCat = product.categories.find(function(c) { return c.group_id == group.group_id; });
+            if (!productCat) {
+                return false;
+            }
+            if (productCat.category_id !== selectedCatId) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    if (filteredProducts.length === 0) {
+        $('#productListArea').html('<div class="text-muted text-center py-4">暂无符合条件的产品</div>');
+        return;
+    }
+    
+    if (displayMode === 'card') {
+        var html = '<div class="row">';
+        filteredProducts.forEach(function(p) {
+            var sel = selectedProducts.some(function(s) { return s.product_id === p.id; });
+            html += '<div class="col-md-6 mb-2">';
+            html += '<div class="card ' + (sel ? 'border-primary' : '') + '" style="cursor:pointer" onclick="toggleProduct(' + p.id + ',\'' + p.product_name.replace(/'/g,"\\'") + '\',' + p.price + ',' + (p.width||0) + ',' + (p.height||0) + ')">';
+            html += '<div class="card-body py-2"><div class="d-flex justify-content-between"><strong>' + p.product_name + '</strong>';
+            html += sel ? '<span class="badge bg-primary">已选</span>' : '';
+            html += '</div>';
+            html += '<small class="text-muted">' + (p.width||0) + 'x' + (p.height||0) + 'cm ¥' + p.price + '</small></div></div></div>';
+        });
+        html += '</div>';
+        $('#productListArea').html(html);
+    } else {
+        var html = '<table class="table table-sm table-hover"><thead><tr><th>产品</th><th>尺寸</th><th>单价</th><th>操作</th></tr></thead><tbody>';
+        filteredProducts.forEach(function(p) {
+            var sel = selectedProducts.some(function(s) { return s.product_id === p.id; });
+            html += '<tr' + (sel ? ' class="table-primary"' : '') + ' style="cursor:pointer" onclick="toggleProduct(' + p.id + ',\'' + p.product_name.replace(/'/g,"\\'") + '\',' + p.price + ',' + (p.width||0) + ',' + (p.height||0) + ')">';
+            html += '<td>' + p.product_name + '</td><td>' + (p.width||0) + 'x' + (p.height||0) + 'cm</td><td>¥' + p.price + '</td><td>' + (sel ? '✓ 已选' : '点击添加') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        $('#productListArea').html(html);
+    }
+}
+
+function toggleProduct(id, name, price, w, h) {
+    // 检查是否有未修改的相同产品
+    var unmodifiedIndex = -1;
+    for (var i = 0; i < selectedProducts.length; i++) {
+        if (selectedProducts[i].product_id === id) {
+            var item = selectedProducts[i];
+            var isModified = (item.width !== w || 
+                             item.height !== h || 
+                             (item.remark && item.remark.trim() !== ''));
+            if (!isModified) {
+                unmodifiedIndex = i;
+                break;
+            }
+        }
+    }
+    
+    if (unmodifiedIndex > -1) {
+        // 找到未修改的，数量+1
+        selectedProducts[unmodifiedIndex].quantity += 1;
+        selectedProducts[unmodifiedIndex].subtotal = selectedProducts[unmodifiedIndex].price * selectedProducts[unmodifiedIndex].quantity;
+    } else {
+        // 没找到未修改的，添加新产品
+        selectedProducts.push({
+            itemIndex: Date.now(),
+            product_id: id,
+            product_name: name,
+            price: price,
+            width: w,
+            height: h,
+            original_width: w,
+            original_height: h,
+            quantity: 1,
+            subtotal: price,
+            remark: ''
+        });
+    }
+    renderFilteredProducts();
+    renderSelectedProducts();
+}
+
+function renderSelectedProducts() {
+    $('#selectedCount').text(selectedProducts.length);
+    
+    if (selectedProducts.length === 0) {
+        $('#selectedProductsArea').html('<div class="text-muted text-center py-4">未选择产品</div>');
+        $('#orderTotalAmount').text('0.00');
+        return;
+    }
+    
+    var total = 0;
+    var html = '';
+    
+    if (displayMode === 'table') {
+        // 表格模式（只读）
+        html += '<div class="table-responsive" style="max-height: 320px; overflow-y: auto;">';
+        html += '<table class="table table-bordered table-sm table-striped table-hover" style="margin-bottom: 0;">';
+        html += '<thead class="table-light sticky-top"><tr>';
+        html += '<th style="width: 25%;">产品名称</th>';
+        html += '<th style="width: 8%;">宽(cm)</th>';
+        html += '<th style="width: 8%;">高(cm)</th>';
+        html += '<th style="width: 12%;">单价</th>';
+        html += '<th style="width: 8%;">数量</th>';
+        html += '<th style="width: 12%;">小计</th>';
+        html += '<th style="width: 20%;">备注</th>';
+        html += '<th style="width: 7%;">操作</th>';
+        html += '</tr></thead>';
+        html += '<tbody>';
+        selectedProducts.forEach(function(item) {
+            total += item.subtotal;
+            var remark = item.remark || '-';
+            var displayRemark = remark.length > 10 ? remark.substring(0, 10) + '...' : remark;
+            var remarkTitle = remark === '-' ? '' : 'title="' + remark.replace(/"/g, '&quot;') + '"';
+            
+            html += '<tr>';
+            html += '<td><strong>' + item.product_name + '</strong></td>';
+            html += '<td class="text-center">' + (item.width || 0) + ' cm</td>';
+            html += '<td class="text-center">' + (item.height || 0) + ' cm</td>';
+            html += '<td class="text-end">¥' + item.price.toFixed(2) + '</td>';
+            html += '<td class="text-center">' + item.quantity + '</td>';
+            html += '<td class="text-end"><strong>¥' + item.subtotal.toFixed(2) + '</strong></td>';
+            html += '<td><span ' + remarkTitle + ' style="cursor:pointer;" class="text-muted">' + displayRemark + '</span></td>';
+            html += '<td class="text-center"><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeProduct(' + item.itemIndex + ')">x</button></td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+    } else {
+        // 卡片模式（可编辑）
+        selectedProducts.forEach(function(item) {
+            total += item.subtotal;
+            html += '<div class="card mb-2"><div class="card-body py-2">';
+            html += '<div class="d-flex justify-content-between mb-2"><strong>' + item.product_name + '</strong>';
+            html += '<button class="btn btn-sm btn-outline-danger" onclick="removeProduct(' + item.itemIndex + ')">x</button></div>';
+            html += '<div class="row g-1">';
+            html += '<div class="col-3"><label class="small text-muted">宽(cm)</label><input type="number" class="form-control form-control-sm" value="' + (item.width || 0) + '" onchange="updateWidth(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-3"><label class="small text-muted">高(cm)</label><input type="number" class="form-control form-control-sm" value="' + (item.height || 0) + '" onchange="updateHeight(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-3"><label class="small text-muted">单价</label><input type="number" class="form-control form-control-sm" value="' + item.price + '" onchange="updatePrice(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-2"><label class="small text-muted">数量</label><input type="number" class="form-control form-control-sm" value="' + item.quantity + '" onchange="updateQuantity(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-1">¥' + item.subtotal.toFixed(2) + '</div>';
+            html += '</div>';
+            html += '<input type="text" class="form-control form-control-sm mt-2" placeholder="备注" value="' + (item.remark || '') + '" onchange="updateRemark(' + item.itemIndex + ', this.value)">';
+            html += '</div></div>';
+        });
+    }
+    
+    $('#selectedProductsArea').html(html);
+    $('#orderTotalAmount').text(total.toFixed(2));
+}
+
+function removeProduct(idx) {
+    selectedProducts = selectedProducts.filter(function(p) { return p.itemIndex !== idx; });
+    renderFilteredProducts();
+    renderSelectedProducts();
+}
+
+function updatePrice(itemIndex, newPrice) {
+    var product = selectedProducts.find(function(p) { return p.itemIndex === itemIndex; });
+    if (product) {
+        product.price = parseFloat(newPrice) || 0;
+        product.subtotal = product.price * product.quantity;
+        renderSelectedProducts();
+    }
+}
+
+function updateQuantity(itemIndex, newQuantity) {
+    var product = selectedProducts.find(function(p) { return p.itemIndex === itemIndex; });
+    if (product) {
+        product.quantity = parseInt(newQuantity) || 1;
+        product.subtotal = product.price * product.quantity;
+        renderSelectedProducts();
+    }
+}
+
+function updateWidth(itemIndex, newWidth) {
+    var product = selectedProducts.find(function(p) { return p.itemIndex === itemIndex; });
+    if (product) { product.width = parseFloat(newWidth) || 0; }
+}
+
+function updateHeight(itemIndex, newHeight) {
+    var product = selectedProducts.find(function(p) { return p.itemIndex === itemIndex; });
+    if (product) { product.height = parseFloat(newHeight) || 0; }
+}
+
+function updateRemark(itemIndex, newRemark) {
+    var product = selectedProducts.find(function(p) { return p.itemIndex === itemIndex; });
+    if (product) { product.remark = newRemark; }
+}
+
+function saveOrder() {
+    var data = {
+        items: selectedProducts,
+        express_method: $('input[name="express_method"]:checked').val() || '',
+        express_fee_type: $('input[name="express_fee_type"]:checked').val() || '',
+        express_shop_address: $('#expressShopAddress').val(),
+        express_shop_phone: $('#expressShopPhone').val(),
+        remark: $('#orderRemark').val()
+    };
+    
+    var total = 0;
+    selectedProducts.forEach(function(p) { total += p.subtotal; });
+    data.total_amount = total;
+    
+    $.ajax({
+        url: '/order/api/update/' + orderId,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                alert('保存成功');
+                var urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('from_shop')) {
+                    window.location.href = '/order/detail/' + orderId + '?from_shop=' + urlParams.get('from_shop');
+                } else if (urlParams.get('from_status')) {
+                    window.location.href = '/order/detail/' + orderId + '?from_status=' + urlParams.get('from_status');
+                } else {
+                    window.location.href = '/order/detail/' + orderId;
+                }
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

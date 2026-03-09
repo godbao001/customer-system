@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}系统设置 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h4><i class="bi bi-sliders me-2"></i>系统设置</h4>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button">
+                    基础设置
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="business-tab" data-bs-toggle="tab" data-bs-target="#business" type="button">
+                    业务设置
+                </button>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="tab-content">
+    <!-- 基础设置 -->
+    <div class="tab-pane fade show active" id="basic">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h5>基础设置</h5>
+            </div>
+            <div class="p-3">
+                <form id="basicForm">
+                    <div class="mb-4">
+                        <label class="form-label">系统名称</label>
+                        <input type="text" class="form-control" id="systemName" name="system_name" placeholder="请输入系统名称">
+                        <div class="form-text">显示在浏览器标题和页面顶部</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">LOGO</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <div>
+                                <img id="logoPreview" src="" style="max-height: 80px; display: none;" class="border rounded p-1">
+                                <div id="logoPlaceholder" class="border rounded p-3 text-muted" style="width: 120px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                                    暂无图片
+                                </div>
+                            </div>
+                            <div>
+                                <input type="file" class="form-control" id="logoFile" accept="image/*" style="width: 200px;">
+                                <div class="form-text">建议尺寸: 200x60px，支持jpg、png、gif</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary" onclick="saveBasic()">
+                        <i class="bi bi-save me-1"></i> 保存配置
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 业务设置 -->
+    <div class="tab-pane fade" id="business">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h5>业务配置</h5>
+            </div>
+            <div class="p-3">
+                <form id="businessForm">
+                    <div class="mb-4">
+                        <label class="form-label">包邮金额</label>
+                        <div class="input-group" style="max-width: 300px;">
+                            <input type="number" class="form-control" id="freeShippingAmount" placeholder="0" min="0">
+                            <span class="input-group-text">元</span>
+                        </div>
+                        <div class="form-text">订单金额达到此金额时免运费</div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary" onclick="saveBusiness()">
+                        <i class="bi bi-save me-1"></i> 保存配置
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(function() {
+    loadBasic();
+    
+    $('#logoFile').change(function() {
+        var file = this.files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                $('#logoPreview').attr('src', e.target.result).show();
+                $('#logoPlaceholder').hide();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+});
+
+function loadBasic() {
+    $.get('/system/api/basic/get', function(res) {
+        if (res.code === 0) {
+            $('#systemName').val(res.data.system_name || '');
+            if (res.data.logo) {
+                $('#logoPreview').attr('src', res.data.logo).show();
+                $('#logoPlaceholder').hide();
+            }
+            if (res.data.free_shipping_amount) {
+                $('#freeShippingAmount').val(res.data.free_shipping_amount);
+            }
+        }
+    });
+}
+
+function saveBasic() {
+    var systemName = $('#systemName').val();
+    var file = $('#logoFile')[0].files[0];
+    
+    $.ajax({
+        url: '/system/api/basic/save',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ system_name: systemName }),
+        success: function(res) {
+            if (res.code === 0) {
+                if (file) {
+                    var formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('config_key', 'logo');
+                    
+                    $.ajax({
+                        url: '/system/api/upload',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(uploadRes) {
+                            if (uploadRes.code === 0) {
+                                $('#logoPreview').attr('src', uploadRes.data).show();
+                                $('#logoPlaceholder').hide();
+                            }
+                            alert('保存成功');
+                        }
+                    });
+                } else {
+                    alert('保存成功');
+                }
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+function saveBusiness() {
+    var freeShippingAmount = $('#freeShippingAmount').val();
+    
+    $.ajax({
+        url: '/system/api/basic/save',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ free_shipping_amount: freeShippingAmount }),
+        success: function(res) {
+            if (res.code === 0) {
+                alert('保存成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

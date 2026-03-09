@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}产品分类 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">
+        <i class="bi bi-tags me-2"></i>产品分类
+    </h4>
+    <div>
+        <a href="/product/group" class="btn btn-outline-info btn-sm me-2">
+            <i class="bi bi-collection"></i> 分类组管理
+        </a>
+        <a href="/product/" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-box-seam"></i> 产品列表
+        </a>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="p-3 border-bottom">
+        <button class="btn btn-success" onclick="showAddModal()">
+            <i class="bi bi-plus-circle"></i> 添加分类
+        </button>
+    </div>
+    
+    <div class="table-responsive p-3">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>分类名称</th>
+                    <th>所属分类组</th>
+                    <th>排序</th>
+                    <th>默认</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="bi bi-hourglass-split"></i> 加载中...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加分类</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <input type="hidden" id="categoryId">
+                    <div class="mb-3">
+                        <label class="form-label">所属分类组</label>
+                        <select class="form-select" id="groupId">
+                            <option value="0">无分组</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">分类名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="categoryName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">排序</label>
+                        <input type="number" class="form-control" id="sortOrder" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="isDefault">
+                            <label class="form-check-label" for="isDefault">设为默认（下单时自动选中）</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveCategory()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载分类组下拉
+function loadGroups() {
+    $.get('/product/api/group/list', function(res) {
+        if (res.code === 0) {
+            let html = '<option value="0">无分组</option>';
+            res.data.forEach(item => {
+                html += `<option value="${item.id}">${item.group_name}</option>`;
+            });
+            $('#groupId').html(html);
+        }
+    });
+}
+
+// 加载数据
+function loadData() {
+    $.get('/product/api/category/list', { status: 1 }, function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+        }
+    });
+}
+
+// 渲染表格
+function renderTable(data) {
+    if (data.length === 0) {
+        $('#tableBody').html('<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    let html = '';
+    data.forEach(item => {
+        html += `
+        <tr ondblclick="editCategory(${item.id})" style="cursor:pointer" title="双击编辑">
+            <td>${item.id}</td>
+            <td><strong>${item.category_name}</strong></td>
+            <td>${item.group_name || '-'}</td>
+            <td>${item.sort_order}</td>
+            <td>${item.is_default === 1 ? '<span class="badge bg-warning"><i class="bi bi-star"></i> 默认</span>' : '-'}</td>
+            <td><span class="badge status-normal">正常</span></td>
+            <td>${item.created_at}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); editCategory(${item.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteCategory(${item.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    $('#tableBody').html(html);
+}
+
+// 显示添加弹窗
+function showAddModal() {
+    $('#categoryId').val('');
+    $('#categoryForm')[0].reset();
+    $('#modalTitle').text('添加分类');
+    new bootstrap.Modal($('#categoryModal')).show();
+}
+
+// 编辑分类
+function editCategory(id) {
+    $.get('/product/api/category/list', { status: 1 }, function(res) {
+        if (res.code === 0) {
+            const category = res.data.find(item => item.id === id);
+            if (category) {
+                $('#categoryId').val(category.id);
+                $('#groupId').val(category.group_id || 0);
+                $('#categoryName').val(category.category_name);
+                $('#sortOrder').val(category.sort_order);
+                $('#isDefault').prop('checked', category.is_default === 1);
+                $('#modalTitle').text('编辑分类');
+                new bootstrap.Modal($('#categoryModal')).show();
+            }
+        }
+    });
+}
+
+// 保存分类
+function saveCategory() {
+    const id = $('#categoryId').val();
+    const data = {
+        category_name: $('#categoryName').val(),
+        group_id: parseInt($('#groupId').val()) || 0,
+        sort_order: parseInt($('#sortOrder').val()) || 0,
+        is_default: $('#isDefault').is(':checked') ? 1 : 0
+    };
+    
+    if (!data.category_name) {
+        alert('请填写分类名称');
+        return;
+    }
+    
+    const url = id ? `/product/api/category/edit/${id}` : '/product/api/category/add';
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                $('#categoryModal').modal('hide');
+                loadData();
+                alert(id ? '修改成功' : '添加成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 删除分类
+function deleteCategory(id) {
+    if (!confirm('确定要删除该分类吗？')) return;
+    
+    $.ajax({
+        url: `/product/api/category/delete/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData();
+                alert('删除成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 页面加载
+$(function() {
+    loadGroups();
+    loadData();
+});
+</script>
+{% endblock %}

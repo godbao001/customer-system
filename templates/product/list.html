@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}产品列表 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">
+        <i class="bi bi-box-seam me-2"></i>产品管理
+    </h4>
+    <div>
+        <span class="badge bg-primary me-2">产品列表</span>
+        <a href="/product/disabled" class="btn btn-outline-secondary btn-sm me-2">
+            <i class="bi bi-pause-circle"></i> 停用列表
+        </a>
+        <a href="/product/group" class="btn btn-outline-info btn-sm me-2">
+            <i class="bi bi-collection"></i> 分类组
+        </a>
+        <a href="/product/category" class="btn btn-outline-info btn-sm">
+            <i class="bi bi-tags"></i> 产品分类
+        </a>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="p-3 border-bottom">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索产品名称..." oninput="searchByKeyword()">
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-success" onclick="showAddModal()">
+                    <i class="bi bi-plus-circle"></i> 添加产品
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-responsive p-3">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>产品名称</th>
+                    <th>分类</th>
+                    <th>宽</th>
+                    <th>高</th>
+                    <th>单价</th>
+                    <th>单位</th>
+                    <th>销售状态</th>
+                    <th>包邮产品</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="11" class="text-center text-muted py-4">
+                        <i class="bi bi-hourglass-split"></i> 加载中...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="p-3 border-top">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">共 <span id="totalCount">0</span> 条记录</div>
+            <nav>
+                <ul class="pagination mb-0" id="pagination"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加产品</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">产品名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="productName" required>
+                        </div>
+                        
+                        <!-- 分类组区域 -->
+                        <div class="col-12">
+                            <label class="form-label">产品分类</label>
+                            <div id="categoryContainer" class="border rounded p-3">
+                                <div class="text-muted">暂无分类组，请先添加分类组</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">宽度</label>
+                            <input type="number" class="form-control" id="width" step="0.01" min="0" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">高度</label>
+                            <input type="number" class="form-control" id="height" step="0.01" min="0" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">单价</label>
+                            <input type="number" class="form-control" id="price" step="0.01" min="0" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">单位</label>
+                            <input type="text" class="form-control" id="unit" placeholder="如：个、箱、件">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">销售状态</label>
+                            <select class="form-select" id="salesStatus">
+                                <option value="0" selected>停售</option>
+                                <option value="1">在售</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">包邮产品</label>
+                            <select class="form-select" id="freeShipping">
+                                <option value="0" selected>否</option>
+                                <option value="1">是</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">产品描述</label>
+                            <textarea class="form-control" id="description" rows="2"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">备注</label>
+                            <textarea class="form-control" id="remark" rows="2"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveProduct()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let currentStatus = 1;
+let categoryTree = [];
+
+// 模糊搜索
+function searchByKeyword() {
+    loadData(1);
+}
+
+// 加载分类组和分类
+function loadCategoryTree() {
+    $.get('/product/api/category/tree', function(res) {
+        if (res.code === 0) {
+            categoryTree = res.data;
+            renderCategoryForm();
+        }
+    });
+}
+
+// 渲染分类表单
+function renderCategoryForm(selectedCategories = []) {
+    const container = $('#categoryContainer');
+    if (categoryTree.length === 0) {
+        container.html('<div class="text-muted">暂无分类组，请先添加分类组</div>');
+        return;
+    }
+    
+    let html = '';
+    categoryTree.forEach(group => {
+        // 查找当前选中的分类
+        const selected = selectedCategories.find(c => c.group_id === group.group_id);
+        
+        html += `
+        <div class="mb-3">
+            <label class="form-label">${group.group_name}</label>
+            <select class="form-select category-select" data-group-id="${group.group_id}">
+                <option value="">-- 不区分 --</option>
+                ${group.categories.map(c => 
+                    `<option value="${c.id}" ${selected && selected.category_id === c.id ? 'selected' : ''}>${c.category_name}</option>`
+                ).join('')}
+            </select>
+        </div>`;
+    });
+    container.html(html);
+}
+
+// 获取选中的分类
+function getSelectedCategories() {
+    const categories = [];
+    $('.category-select').each(function() {
+        const groupId = $(this).data('group-id');
+        const categoryId = $(this).val();
+        categories.push({
+            group_id: groupId,
+            category_id: categoryId ? parseInt(categoryId) : null
+        });
+    });
+    return categories;
+}
+
+// 加载数据
+function loadData(page = 1) {
+    currentPage = page;
+    const search = $('#searchInput').val();
+    
+    $.get('/product/api/list', {
+        status: currentStatus,
+        page: page,
+        limit: 12,
+        search: search
+    }, function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+            renderPagination(res.count, page);
+            $('#totalCount').text(res.count);
+        }
+    });
+}
+
+// 渲染表格
+function renderTable(data) {
+    if (data.length === 0) {
+        $('#tableBody').html('<tr><td colspan="11" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    let html = '';
+    data.forEach(item => {
+        let salesStatusHtml = item.sales_status === 1 
+            ? '<span class="badge bg-success" style="cursor:pointer" onclick="toggleSalesStatus(' + item.id + ')">在售</span>' 
+            : '<span class="badge bg-secondary" style="cursor:pointer" onclick="toggleSalesStatus(' + item.id + ')">停售</span>';
+        
+        let freeShippingHtml = item.free_shipping === 1 
+            ? '<span class="badge bg-info" style="cursor:pointer" onclick="toggleFreeShipping(' + item.id + ')">包邮</span>' 
+            : '<span style="cursor:pointer" onclick="toggleFreeShipping(' + item.id + ')">-</span>';
+        
+        // 渲染分类显示
+        let categoryHtml = item.category_display && item.category_display.length > 0 
+            ? item.category_display.map(c => `<div>${c.group_name}: ${c.category_name || '-'}</div>`).join('')
+            : '-';
+        
+        html += `
+        <tr ondblclick="editProduct(${item.id})" style="cursor:pointer" title="双击编辑">
+            <td>${item.id}</td>
+            <td><strong>${item.product_name}</strong></td>
+            <td>${categoryHtml}</td>
+            <td>${item.width || '-'}</td>
+            <td>${item.height || '-'}</td>
+            <td>¥${item.price.toFixed(2)}</td>
+            <td>${item.unit || '-'}</td>
+            <td>${salesStatusHtml}</td>
+            <td>${freeShippingHtml}</td>
+            <td>${item.created_at}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); editProduct(${item.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning me-1" onclick="event.stopPropagation(); toggleStatus(${item.id}, 0)">
+                    <i class="bi bi-pause-circle"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteProduct(${item.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    $('#tableBody').html(html);
+}
+
+// 渲染分页
+function renderPagination(total, page) {
+    const totalPages = Math.ceil(total / 12);
+    if (totalPages <= 1) {
+        $('#pagination').html('');
+        return;
+    }
+    
+    let html = '';
+    html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:void(0)" data-page="${page - 1}">上一页</a>
+    </li>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<li class="page-item ${i === page ? 'active' : ''}">
+            <a class="page-link" href="javascript:void(0)" data-page="${i}">${i}</a>
+        </li>`;
+    }
+    
+    html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:void(0)" data-page="${page + 1}">下一页</a>
+    </li>`;
+    
+    $('#pagination').html(html);
+    
+    // 绑定分页点击事件
+    $('#pagination .page-link').on('click', function(e) {
+        e.preventDefault();
+        const p = $(this).data('page');
+        if (p && p > 0) {
+            loadData(p);
+        }
+    });
+}
+
+// 显示添加弹窗
+function showAddModal() {
+    $('#productId').val('');
+    $('#productForm')[0].reset();
+    renderCategoryForm();
+    $('#modalTitle').text('添加产品');
+    new bootstrap.Modal($('#productModal')).show();
+}
+
+// 编辑产品
+function editProduct(id) {
+    $.get('/product/api/list', { status: 1, limit: 1000 }, function(res) {
+        if (res.code === 0) {
+            const product = res.data.find(item => item.id === id);
+            if (product) {
+                $('#productId').val(product.id);
+                $('#productName').val(product.product_name);
+                $('#width').val(product.width);
+                $('#height').val(product.height);
+                $('#price').val(product.price);
+                $('#unit').val(product.unit);
+                $('#salesStatus').val(product.sales_status);
+                $('#freeShipping').val(product.free_shipping || 0);
+                $('#description').val(product.description);
+                $('#remark').val(product.remark);
+                
+                // 设置分类
+                const selectedCategories = product.categories || [];
+                renderCategoryForm(selectedCategories);
+                
+                $('#modalTitle').text('编辑产品');
+                new bootstrap.Modal($('#productModal')).show();
+            }
+        }
+    });
+}
+
+// 保存产品
+function saveProduct() {
+    const id = $('#productId').val();
+    const data = {
+        product_name: $('#productName').val(),
+        width: parseFloat($('#width').val()) || 0,
+        height: parseFloat($('#height').val()) || 0,
+        price: parseFloat($('#price').val()) || 0,
+        unit: $('#unit').val(),
+        description: $('#description').val(),
+        sales_status: parseInt($('#salesStatus').val()),
+        free_shipping: parseInt($('#freeShipping').val()),
+        remark: $('#remark').val(),
+        categories: getSelectedCategories()
+    };
+    
+    if (!data.product_name) {
+        alert('请填写产品名称');
+        return;
+    }
+    
+    const url = id ? `/product/api/edit/${id}` : '/product/api/add';
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                $('#productModal').modal('hide');
+                loadData(currentPage);
+                alert(id ? '修改成功' : '添加成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 切换状态
+function toggleStatus(id, status) {
+    if (!confirm(status === 0 ? '确定要停用该产品吗？' : '确定要启用该产品吗？')) return;
+    
+    $.ajax({
+        url: `/product/api/toggle_status/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+                alert('操作成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 切换销售状态
+function toggleSalesStatus(id) {
+    event.stopPropagation();
+    
+    $.ajax({
+        url: '/product/api/toggle_sales_status/' + id,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 切换包邮状态
+function toggleFreeShipping(id) {
+    event.stopPropagation();
+    
+    $.ajax({
+        url: '/product/api/toggle_free_shipping/' + id,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 删除产品
+function deleteProduct(id) {
+    if (!confirm('确定要删除该产品吗？此操作不可恢复！')) return;
+    
+    $.ajax({
+        url: `/product/api/delete/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+                alert('删除成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 页面加载
+$(function() {
+    loadCategoryTree();
+    loadData();
+});
+</script>
+{% endblock %}

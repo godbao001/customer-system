@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}分类组管理 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">
+        <i class="bi bi-collection me-2"></i>分类组管理
+    </h4>
+    <div>
+        <a href="/product/category" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-tags"></i> 分类管理
+        </a>
+        <a href="/product/" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-box-seam"></i> 产品列表
+        </a>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="p-3 border-bottom">
+        <button class="btn btn-success" onclick="showAddModal()">
+            <i class="bi bi-plus-circle"></i> 添加分类组
+        </button>
+    </div>
+    
+    <div class="table-responsive p-3">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>分类组名称</th>
+                    <th>排序</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bi bi-hourglass-split"></i> 加载中...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal fade" id="groupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加分类组</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="groupForm">
+                    <input type="hidden" id="groupId">
+                    <div class="mb-3">
+                        <label class="form-label">分类组名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="groupName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">排序</label>
+                        <input type="number" class="form-control" id="sortOrder" value="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveGroup()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载数据
+function loadData() {
+    $.get('/product/api/group/list', function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+        }
+    });
+}
+
+// 渲染表格
+function renderTable(data) {
+    if (data.length === 0) {
+        $('#tableBody').html('<tr><td colspan="5" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    let html = '';
+    data.forEach(item => {
+        html += `
+        <tr ondblclick="editGroup(${item.id})" style="cursor:pointer" title="双击编辑">
+            <td>${item.id}</td>
+            <td><strong>${item.group_name}</strong></td>
+            <td>${item.sort_order}</td>
+            <td><span class="badge status-normal">正常</span></td>
+            <td>${item.created_at}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); editGroup(${item.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteGroup(${item.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    $('#tableBody').html(html);
+}
+
+// 显示添加弹窗
+function showAddModal() {
+    $('#groupId').val('');
+    $('#groupForm')[0].reset();
+    $('#modalTitle').text('添加分类组');
+    new bootstrap.Modal($('#groupModal')).show();
+}
+
+// 编辑分类组
+function editGroup(id) {
+    $.get('/product/api/group/list', function(res) {
+        if (res.code === 0) {
+            const group = res.data.find(item => item.id === id);
+            if (group) {
+                $('#groupId').val(group.id);
+                $('#groupName').val(group.group_name);
+                $('#sortOrder').val(group.sort_order);
+                $('#modalTitle').text('编辑分类组');
+                new bootstrap.Modal($('#groupModal')).show();
+            }
+        }
+    });
+}
+
+// 保存分类组
+function saveGroup() {
+    const id = $('#groupId').val();
+    const data = {
+        group_name: $('#groupName').val(),
+        sort_order: parseInt($('#sortOrder').val()) || 0
+    };
+    
+    if (!data.group_name) {
+        alert('请填写分类组名称');
+        return;
+    }
+    
+    const url = id ? `/product/api/group/edit/${id}` : '/product/api/group/add';
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                $('#groupModal').modal('hide');
+                loadData();
+                alert(id ? '修改成功' : '添加成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 删除分类组
+function deleteGroup(id) {
+    if (!confirm('确定要删除该分类组吗？')) return;
+    
+    $.ajax({
+        url: `/product/api/group/delete/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData();
+                alert('删除成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 页面加载
+$(function() {
+    loadData();
+});
+</script>
+{% endblock %}

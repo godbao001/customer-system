@@ -1,0 +1,877 @@
+{% extends "base.html" %}
+
+{% block title %}订单详情 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">
+        <i class="bi bi-receipt me-2"></i>订单详情
+    </h4>
+    <div>
+        <a href="/shop/" class="btn btn-outline-secondary btn-sm" id="backBtn">
+            <i class="bi bi-arrow-left"></i> 返回
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="table-card mb-4">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0">订单信息</h5>
+            </div>
+            <div class="p-3">
+                <table class="table table-borderless">
+                    <tr>
+                        <td width="120">订单ID：</td>
+                        <td>{{ order.id }}</td>
+                    </tr>
+                    <tr>
+                        <td>店铺名称：</td>
+                        <td>[{{ order.shop_id }}] {{ order.shop.shop_name if order.shop else '' }}</td>
+                    </tr>
+                    <tr>
+                        <td>门店地址：</td>
+                        <td>{{ order.express_shop_address or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>门店电话：</td>
+                        <td>{{ order.express_shop_phone or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>订单金额：</td>
+                        <td><strong class="text-primary">¥{{ order.total_amount }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>快递方式：</td>
+                        <td>{{ order.express_method or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>快递费类型：</td>
+                        <td>{{ order.express_fee_type or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>订单状态：</td>
+                        <td>
+                            {% if order.status == 1 %}
+                            <span class="badge bg-warning text-dark">下单未确认</span>
+                            {% elif order.status == 2 %}
+                            <span class="badge bg-info">确认未付款</span>
+                            {% elif order.status == 3 %}
+                            <span class="badge bg-primary">付款未制作</span>
+                            {% elif order.status == 4 %}
+                            <span class="badge bg-purple text-white">制作未打包</span>
+                            {% elif order.status == 5 %}
+                            <span class="badge bg-orange text-white">发货未到货</span>
+                            {% elif order.status == 6 %}
+                            <span class="badge bg-success">已到货</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>下单时间：</td>
+                        <td>{{ order.order_time.strftime('%Y-%m-%d %H:%M:%S') if order.order_time else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>确认时间：</td>
+                        <td>{{ order.confirm_time.strftime('%Y-%m-%d %H:%M:%S') if order.confirm_time else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>付款时间：</td>
+                        <td>{{ order.pay_time.strftime('%Y-%m-%d %H:%M:%S') if order.pay_time else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>制作时间：</td>
+                        <td>{{ order.make_time.strftime('%Y-%m-%d %H:%M:%S') if order.make_time else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td>创建时间：</td>
+                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else '' }}</td>
+                    </tr>
+                    <tr>
+                        <td>备注：</td>
+                        <td>{{ order.remark or '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0">订单操作</h5>
+            </div>
+            <div class="p-3">
+                <div class="d-grid gap-2">
+                    {% if order.status in [1, 2] %}
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editOrderModal">
+                        <i class="bi bi-pencil"></i> 修改订单
+                    </button>
+                    {% endif %}
+                    {% if order.status == 1 %}
+                    <button class="btn btn-success" onclick="updateStatus(2)">
+                        <i class="bi bi-check-circle"></i> 确认订单
+                    </button>
+                    <button class="btn btn-warning" onclick="updateStatus(3)">
+                        <i class="bi bi-currency-yen"></i> 确认付款
+                    </button>
+                    {% elif order.status == 2 %}
+                    <button class="btn btn-secondary" onclick="updateStatus(1)">
+                        <i class="bi bi-arrow-left-circle"></i> 退回
+                    </button>
+                    <button class="btn btn-warning" onclick="updateStatus(3)">
+                        <i class="bi bi-currency-yen"></i> 确认付款
+                    </button>
+                    {% elif order.status == 3 %}
+                    <button class="btn btn-primary" onclick="updateStatus(4)">
+                        <i class="bi bi-box-seam"></i> 开始制作
+                    </button>
+                    {% elif order.status == 4 %}
+                    <button class="btn btn-info" onclick="updateStatus(5)">
+                        <i class="bi bi-truck"></i> 发货
+                    </button>
+                    {% elif order.status == 5 %}
+                    <button class="btn btn-success" onclick="updateStatus(6)">
+                        <i class="bi bi-bag-check"></i> 确认到货
+                    </button>
+                    {% endif %}
+                    {% if order.status in [1, 2] %}
+                    <button class="btn btn-danger" onclick="deleteOrder()">
+                        <i class="bi bi-trash"></i> 删除订单
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-card mt-4">
+    <div class="p-3 border-bottom">
+        <h5 class="mb-0">订单明细</h5>
+    </div>
+    <div class="table-responsive p-3">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>产品名称</th>
+                    <th>宽(厘米)</th>
+                    <th>高(厘米)</th>
+                    <th>单价(元)</th>
+                    <th>数量</th>
+                    <th>小计(元)</th>
+                    <th>产品类型</th>
+                    <th>备注</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if items %}
+                {% for item in items %}
+                {% set orig_w = item.original_width if item.original_width else 0 %}
+                {% set orig_h = item.original_height if item.original_height else 0 %}
+                {% set curr_w = item.width if item.width else 0 %}
+                {% set curr_h = item.height if item.height else 0 %}
+                {% set has_remark = item.remark and item.remark.strip() %}
+                {% set is_custom = (orig_w > 0 and (curr_w != orig_w or curr_h != orig_h or has_remark)) or (orig_w == 0 and has_remark) %}
+                <tr {{ 'style="background-color: #fff3f3 !important;"'|safe if is_custom else '' }}>
+                    <td>{{ item.id }}</td>
+                    <td>{{ item.product_name or '-' }}</td>
+                    <td>{{ item.width or '-' }}</td>
+                    <td>{{ item.height or '-' }}</td>
+                    <td>¥{{ item.price }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>¥{{ item.subtotal }}</td>
+                    <td>
+                        {% if is_custom %}
+                        <span class="badge bg-warning text-dark">定制产品</span>
+                        {% else %}
+                        <span class="badge bg-secondary">标准产品</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.remark or '-' }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">暂无明细</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.bg-purple { background-color: #9b59b6 !important; }
+.bg-orange { background-color: #e67e22 !important; }
+</style>
+<script>
+const orderId = {{ order.id }};
+const shopId = {{ order.shop_id }};
+
+$(function() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var fromShop = urlParams.get('from_shop');
+    var fromStatus = urlParams.get('from_status');
+    
+    if (fromShop) {
+        $('#backBtn').attr('href', '/shop/?backToOrders=' + fromShop);
+    } else if (fromStatus) {
+        $('#backBtn').attr('href', '/order/status/' + fromStatus);
+    } else {
+        $('#backBtn').attr('href', '/order/');
+    }
+});
+</script><script>
+
+function updateStatus(status) {
+    const statusText = {
+        1: '下单未确认',
+        2: '确认未付款', 
+        3: '付款未制作', 
+        4: '制作未打包',
+        5: '发货未到货',
+        6: '已到货'
+    };
+    if (!confirm('确定要将订单状态改为"' + statusText[status] + '"吗？')) return;
+    
+    $.ajax({
+        url: '/order/api/update_status/' + orderId,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({status: status}),
+        success: function(res) {
+            if (res.code === 0) {
+                alert('状态更新成功');
+                location.reload();
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+function deleteOrder() {
+    if (!confirm('确定要删除该订单吗？')) return;
+    
+    $.ajax({
+        url: '/order/api/delete/' + orderId,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                alert('删除成功');
+                window.location.href = '/order/';
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+
+<!-- 修改订单弹窗 -->
+<div class="modal fade" id="editOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: 95%; min-height: 80vh;">
+        <div class="modal-content" style="min-height: 75vh;">
+            <div class="modal-header">
+                <h5 class="modal-title">修改订单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <strong>订单号：</strong>{{ order.order_no }} &nbsp;&nbsp;
+                    <strong>店铺：</strong>[{{ order.shop_id }}] {{ order.shop.shop_name if order.shop else '' }}
+                </div>
+                
+                <!-- 第一行：快递信息 + 选择分类 -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <strong><i class="bi bi-truck"></i> 快递信息</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label">门店地址</label>
+                                        <input type="text" class="form-control" id="editExpressShopAddress" value="{{ order.express_shop_address or '' }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">门店电话</label>
+                                        <input type="text" class="form-control" id="editExpressShopPhone" value="{{ order.express_shop_phone or '' }}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">快递方式</label>
+                                        <div id="editExpressMethodList">
+                                            <div class="text-muted">加载中...</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">快递费类型</label>
+                                        <div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="editExpressFeeType" value="寄付" {% if order.express_fee_type == '寄付' %}checked{% endif %}>
+                                                <label class="form-check-label">寄付</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="editExpressFeeType" value="到付" {% if order.express_fee_type == '到付' %}checked{% endif %}>
+                                                <label class="form-check-label">到付</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <strong>选择分类</strong>
+                                <span id="editSelectedCategoryTags"></span>
+                            </div>
+                            <div class="card-body" style="max-height: 250px; overflow-y: auto;" id="editCategoryGroupList">
+                                <div class="text-muted">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 第二行：可选产品 + 已选产品 -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <strong>可选产品</strong>
+                            </div>
+                            <div class="card-body" style="max-height: 350px; overflow-y: auto;" id="editProductListArea">
+                                <div class="text-muted text-center py-4">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <strong>已选产品</strong>
+                                <div>
+                                    <small class="text-muted me-2">共 <span id="editSelectedCount">0</span> 项</small>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <input type="radio" class="btn-check" name="editDisplayMode" id="editModeCard" checked onchange="editSetDisplayMode('card')">
+                                        <label class="btn btn-outline-primary" for="editModeCard">卡片</label>
+                                        <input type="radio" class="btn-check" name="editDisplayMode" id="editModeTable" onchange="editSetDisplayMode('table')">
+                                        <label class="btn btn-outline-primary" for="editModeTable">表格</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body" style="max-height: 350px; overflow-y: auto;" id="editSelectedProductsArea">
+                                <div class="text-muted text-center py-4">加载中...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>订单总金额：¥<span id="editOrderTotalAmount" class="text-primary fs-5">0.00</span></strong>
+                            </div>
+                            <div>
+                                <textarea class="form-control" id="editOrderRemark" rows="1" placeholder="订单备注..." style="width: 200px; display: inline-block;">{{ order.remark or '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditOrder()">保存修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var editSelectedProducts = [];
+var editAllProducts = [];
+var editCategoryGroups = [];
+var editSelectedCategoryMap = {};
+var editDisplayMode = 'card';
+
+$('#editOrderModal').on('shown.bs.modal', function() {
+    editLoadOrderItems();
+    editLoadCategoryGroupsAndProducts();
+    editLoadExpressMethods();
+    editLoadSystemConfig();
+    
+    // 打开时自动检测快递费方式
+    setTimeout(function() {
+        var total = parseFloat($('#editOrderTotalAmount').text()) || 0;
+        editAutoUpdateExpressFeeType(total);
+    }, 500);
+});
+
+var editSystemConfig = { free_shipping_amount: 0 };
+
+function editLoadSystemConfig() {
+    $.get('/system/api/basic/get', function(res) {
+        if (res.code === 0) {
+            editSystemConfig.free_shipping_amount = parseInt(res.data.free_shipping_amount) || 0;
+        }
+    });
+}
+
+function editAutoUpdateExpressFeeType(total) {
+    // 最优先判断：如果没有选择任何产品，默认为到付
+    if (!editSelectedProducts || editSelectedProducts.length === 0) {
+        $('input[name="editExpressFeeType"][value="到付"]').prop('checked', true);
+        return;
+    }
+    
+    // 检查是否有包邮产品（使用已加载的产品数据）
+    var hasFreeShipping = false;
+    
+    if (editAllProducts && editAllProducts.length > 0) {
+        for (var i = 0; i < editSelectedProducts.length; i++) {
+            var p = editAllProducts.find(function(x) { return x.id === editSelectedProducts[i].product_id; });
+            if (p && p.free_shipping == 1) {
+                hasFreeShipping = true;
+                break;
+            }
+        }
+    }
+    
+    // 判断是否满足包邮条件（金额需要是数字）
+    var freeShippingAmount = parseFloat(editSystemConfig.free_shipping_amount) || 0;
+    var orderTotal = parseFloat(total) || 0;
+    var shouldFreeShipping = hasFreeShipping || orderTotal >= freeShippingAmount;
+    
+    // 自动选择快递费方式
+    if (shouldFreeShipping) {
+        $('input[name="editExpressFeeType"][value="寄付"]').prop('checked', true);
+    } else {
+        $('input[name="editExpressFeeType"][value="到付"]').prop('checked', true);
+    }
+}
+
+function editLoadOrderItems() {
+    $.get('/order/api/items/{{ order.id }}', function(res) {
+        if (res.code === 0) {
+            editSelectedProducts = res.data.map(function(item, idx) {
+                return {
+                    itemIndex: idx,
+                    product_id: item.product_id,
+                    product_name: item.product_name,
+                    price: item.price,
+                    width: item.width,
+                    height: item.height,
+                    original_width: item.original_width || item.width,
+                    original_height: item.original_height || item.height,
+                    quantity: item.quantity,
+                    subtotal: item.subtotal,
+                    remark: item.remark || ''
+                };
+            });
+            editRenderSelectedProducts();
+        }
+    });
+}
+
+// 加载发货方式
+function editLoadExpressMethods() {
+    var currentMethod = '{{ order.express_method or "" }}';
+    $.get('/system/api/field/list?field_type=express_method', function(res) {
+        var html = '';
+        if (res.code === 0 && res.data.length > 0) {
+            // 按sort_order降序排列，找默认选项
+            var sortedData = res.data.sort(function(a, b) { return b.sort_order - a.sort_order; });
+            var defaultItem = sortedData.find(function(item) { return item.is_default === 1; });
+            sortedData.forEach(function(item) {
+                var checked = '';
+                if (item.field_name === currentMethod) {
+                    checked = ' checked';
+                } else if (defaultItem && item.is_default === 1) {
+                    checked = ' checked';
+                } else if (!defaultItem && !currentMethod && html === '') {
+                    checked = ' checked';
+                }
+                html += '<div class="form-check form-check-inline">';
+                html += '<input class="form-check-input" type="radio" name="editExpressMethod" id="editExpressMethod' + item.id + '" value="' + item.field_name + '"' + checked + '>';
+                html += '<label class="form-check-label" for="editExpressMethod' + item.id + '">' + item.field_name + '</label>';
+                html += '</div>';
+            });
+        } else {
+            // 默认选项
+            var methods = ['顺丰快递', '自提', '送货', '滴滴'];
+            methods.forEach(function(m, idx) {
+                var checked = m === currentMethod || (idx === 0 && !currentMethod) ? ' checked' : '';
+                html += '<div class="form-check form-check-inline">';
+                html += '<input class="form-check-input" type="radio" name="editExpressMethod" value="' + m + '"' + checked + '>';
+                html += '<label class="form-check-label">' + m + '</label>';
+                html += '</div>';
+            });
+        }
+        $('#editExpressMethodList').html(html);
+    });
+}
+
+function editLoadCategoryGroupsAndProducts() {
+    // 同时加载产品和分类
+    $.when(
+        $.get('/product/api/list', { status: 1, sales_status: 1, page: 1, limit: 1000 }),
+        $.get('/product/api/category/tree')
+    ).done(function(productsRes, categoriesRes) {
+        if (productsRes[0].code === 0) {
+            editAllProducts = productsRes[0].data;
+        }
+        
+        if (categoriesRes[0].code === 0) {
+            editCategoryGroups = categoriesRes[0].data;
+            
+            // 按系统默认分类设置（is_default=1）
+            editCategoryGroups.forEach(function(group) {
+                var defaultCategory = null;
+                if (group.categories && group.categories.length > 0) {
+                    var defaultCat = group.categories.find(function(c) { return c.is_default == 1; });
+                    if (defaultCat) {
+                        defaultCategory = defaultCat.id;
+                    }
+                }
+                editSelectedCategoryMap[group.group_id] = defaultCategory;
+            });
+            
+            editRenderCategoryGroups();
+            editRenderSelectedCategories();
+            editFilterProducts();
+        }
+    });
+}
+
+function editRenderCategoryGroups() {
+    var html = '';
+    if (editCategoryGroups.length === 0) {
+        $('#editCategoryGroupList').html('<div class="text-muted">暂无分类组</div>');
+        return;
+    }
+    
+    editCategoryGroups.forEach(function(group) {
+        var currentSelection = editSelectedCategoryMap[group.group_id];
+        
+        html += '<div class="mb-2 d-flex align-items-center">';
+        html += '<span class="fw-bold text-primary" style="min-width: 80px;">' + group.group_name + '</span>';
+        
+        if (group.categories && group.categories.length > 0) {
+            var isAllSelected = currentSelection === null || currentSelection === undefined;
+            html += '<div class="form-check form-check-inline">';
+            html += '<input class="form-check-input" type="radio" name="edit_cat_' + group.group_id + '" id="edit_cat_all_' + group.group_id + '" ' + (isAllSelected ? 'checked' : '') + ' onchange="editSelectCategory(' + group.group_id + ', null)">';
+            html += '<label class="form-check-label small fw-bold" style="min-width: 28px;cursor:pointer;" for="edit_cat_all_' + group.group_id + '">全部</label>';
+            html += '</div>';
+            
+            group.categories.forEach(function(cat) {
+                var isSelected = currentSelection === cat.id;
+                html += '<div class="form-check form-check-inline">';
+                html += '<input class="form-check-input" type="radio" name="edit_cat_' + group.group_id + '" id="edit_cat_' + cat.id + '" ' + (isSelected ? 'checked' : '') + ' onchange="editSelectCategory(' + group.group_id + ', ' + cat.id + ')">';
+                html += '<label class="form-check-label small" style="cursor:pointer;" for="edit_cat_' + cat.id + '">' + cat.category_name + '</label>';
+                html += '</div>';
+            });
+        }
+        
+        html += '</div><hr>';
+    });
+    $('#editCategoryGroupList').html(html);
+}
+
+function editSelectCategory(groupId, categoryId) {
+    editSelectedCategoryMap[groupId] = categoryId;
+    editRenderCategoryGroups();
+    editRenderSelectedCategories();
+    if (editAllProducts && editAllProducts.length > 0) {
+        editFilterProducts();
+    }
+}
+
+function editRenderSelectedCategories() {
+    var tagsArea = $('#editSelectedCategoryTags');
+    
+    var selectedHtml = '';
+    var hasSelection = false;
+    
+    editCategoryGroups.forEach(function(group) {
+        var catId = editSelectedCategoryMap[group.group_id];
+        if (catId !== null && catId !== undefined) {
+            hasSelection = true;
+            var cat = group.categories.find(function(c) { return c.id === catId; });
+            var catName = cat ? cat.category_name : '';
+            selectedHtml += '<span class="badge bg-primary me-1" style="cursor:pointer;" onclick="editSelectCategory(' + group.group_id + ', null)">' + group.group_name + ': ' + catName + ' <span style="cursor:pointer;margin-left:3px;" onclick="editSelectCategory(' + group.group_id + ', null)">x</span></span>';
+        }
+    });
+    
+    if (hasSelection) {
+        tagsArea.html(selectedHtml);
+    } else {
+        tagsArea.html('');
+    }
+}
+
+function editSetDisplayMode(m) {
+    editDisplayMode = m;
+    editRenderSelectedProducts();
+}
+
+function editFilterProducts() {
+    if (!editAllProducts || editAllProducts.length === 0) {
+        $('#editProductListArea').html('<div class="text-muted text-center py-4">加载产品中...</div>');
+        return;
+    }
+    
+    var filteredProducts = editAllProducts.filter(function(product) {
+        if (!product || !product.product_name) {
+            return false;
+        }
+        
+        if (!editCategoryGroups || editCategoryGroups.length === 0) {
+            return true;
+        }
+        
+        if (!product.categories || product.categories.length === 0) {
+            for (var i = 0; i < editCategoryGroups.length; i++) {
+                var group = editCategoryGroups[i];
+                var selectedCatId = editSelectedCategoryMap[group.group_id];
+                if (selectedCatId !== null && selectedCatId !== undefined) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        for (var i = 0; i < editCategoryGroups.length; i++) {
+            var group = editCategoryGroups[i];
+            var selectedCatId = editSelectedCategoryMap[group.group_id];
+            
+            if (selectedCatId === null || selectedCatId === undefined) {
+                continue;
+            }
+            
+            var productCat = product.categories.find(function(c) { return c.group_id == group.group_id; });
+            if (!productCat) {
+                return false;
+            }
+            if (productCat.category_id !== selectedCatId) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    if (filteredProducts.length === 0) {
+        $('#editProductListArea').html('<div class="text-muted text-center py-4">暂无符合条件的产品</div>');
+        return;
+    }
+    
+    if (editDisplayMode === 'card') {
+        var html = '<div class="row">';
+        filteredProducts.forEach(function(p) {
+            var isSelected = editSelectedProducts.some(function(s) { return s.product_id === p.id; });
+            html += '<div class="col-md-6 mb-2">';
+            html += '<div class="card ' + (isSelected ? 'border-primary' : '') + '" style="cursor:pointer" onclick="editToggleProduct(' + p.id + ', \'' + p.product_name.replace(/'/g, "\\'") + '\', ' + p.price + ', ' + (p.width||0) + ', ' + (p.height||0) + ')">';
+            html += '<div class="card-body py-2"><div class="d-flex justify-content-between"><strong>' + p.product_name + '</strong>';
+            html += isSelected ? '<span class="badge bg-primary">已选</span>' : '';
+            html += '</div>';
+            html += '<small class="text-muted">' + (p.width||0) + 'x' + (p.height||0) + 'cm ¥' + p.price + '</small></div></div></div>';
+        });
+        html += '</div>';
+        $('#editProductListArea').html(html);
+    } else {
+        var html = '<table class="table table-sm table-hover"><thead><tr><th>产品</th><th>尺寸</th><th>单价</th><th>操作</th></tr></thead><tbody>';
+        filteredProducts.forEach(function(p) {
+            var isSelected = editSelectedProducts.some(function(s) { return s.product_id === p.id; });
+            html += '<tr' + (isSelected ? ' class="table-primary"' : '') + ' style="cursor:pointer" onclick="editToggleProduct(' + p.id + ', \'' + p.product_name.replace(/'/g, "\\'") + '\', ' + p.price + ', ' + (p.width||0) + ', ' + (p.height||0) + ')">';
+            html += '<td>' + p.product_name + '</td><td>' + (p.width||0) + 'x' + (p.height||0) + 'cm</td><td>¥' + p.price + '</td><td>' + (isSelected ? '✓ 已选' : '点击添加') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        $('#editProductListArea').html(html);
+    }
+}
+
+function editToggleProduct(id, name, price, w, h) {
+    var unmodifiedIndex = -1;
+    for (var i = 0; i < editSelectedProducts.length; i++) {
+        if (editSelectedProducts[i].product_id === id) {
+            var item = editSelectedProducts[i];
+            var isModified = (item.width !== w || item.height !== h || (item.remark && item.remark.trim() !== ''));
+            if (!isModified) {
+                unmodifiedIndex = i;
+                break;
+            }
+        }
+    }
+    
+    if (unmodifiedIndex > -1) {
+        editSelectedProducts[unmodifiedIndex].quantity += 1;
+        editSelectedProducts[unmodifiedIndex].subtotal = editSelectedProducts[unmodifiedIndex].price * editSelectedProducts[unmodifiedIndex].quantity;
+    } else {
+        editSelectedProducts.push({
+            itemIndex: Date.now(),
+            product_id: id,
+            product_name: name,
+            price: price,
+            width: w,
+            height: h,
+            original_width: w,
+            original_height: h,
+            quantity: 1,
+            subtotal: price,
+            remark: ''
+        });
+    }
+    editFilterProducts();
+    editRenderSelectedProducts();
+}
+
+function editRenderSelectedProducts() {
+    $('#editSelectedCount').text(editSelectedProducts.length);
+    
+    if (editSelectedProducts.length === 0) {
+        $('#editSelectedProductsArea').html('<div class="text-muted text-center py-4">未选择产品</div>');
+        $('#editOrderTotalAmount').text('0.00');
+        return;
+    }
+    
+    var total = 0;
+    var html = '';
+    
+    if (editDisplayMode === 'table') {
+        html += '<div class="table-responsive" style="max-height: 320px; overflow-y: auto;">';
+        html += '<table class="table table-bordered table-sm table-striped table-hover" style="margin-bottom: 0;">';
+        html += '<thead class="table-light sticky-top"><tr>';
+        html += '<th style="width: 25%;">产品名称</th>';
+        html += '<th style="width: 8%;">宽(cm)</th>';
+        html += '<th style="width: 8%;">高(cm)</th>';
+        html += '<th style="width: 12%;">单价</th>';
+        html += '<th style="width: 8%;">数量</th>';
+        html += '<th style="width: 12%;">小计</th>';
+        html += '<th style="width: 20%;">备注</th>';
+        html += '<th style="width: 7%;">操作</th>';
+        html += '</tr></thead>';
+        html += '<tbody>';
+        editSelectedProducts.forEach(function(item) {
+            total += item.subtotal;
+            var remark = item.remark || '-';
+            var displayRemark = remark.length > 10 ? remark.substring(0, 10) + '...' : remark;
+            var remarkTitle = remark === '-' ? '' : 'title="' + remark.replace(/"/g, '&quot;') + '"';
+            
+            html += '<tr>';
+            html += '<td><strong>' + item.product_name + '</strong></td>';
+            html += '<td class="text-center">' + (item.width || 0) + ' cm</td>';
+            html += '<td class="text-center">' + (item.height || 0) + ' cm</td>';
+            html += '<td class="text-end">¥' + item.price.toFixed(2) + '</td>';
+            html += '<td class="text-center">' + item.quantity + '</td>';
+            html += '<td class="text-end"><strong>¥' + item.subtotal.toFixed(2) + '</strong></td>';
+            html += '<td><span ' + remarkTitle + ' style="cursor:pointer;" class="text-muted">' + displayRemark + '</span></td>';
+            html += '<td class="text-center"><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="editRemoveProduct(' + item.itemIndex + ')">x</button></td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+    } else {
+        editSelectedProducts.forEach(function(item) {
+            total += item.subtotal;
+            html += '<div class="card mb-2"><div class="card-body py-2">';
+            html += '<div class="d-flex justify-content-between mb-2"><strong>' + item.product_name + '</strong>';
+            html += '<button class="btn btn-sm btn-outline-danger" onclick="editRemoveProduct(' + item.itemIndex + ')">x</button></div>';
+            html += '<div class="row g-1">';
+            html += '<div class="col-3"><label class="small text-muted">宽(cm)</label><input type="number" class="form-control form-control-sm" value="' + (item.width || 0) + '" onchange="editUpdateWidth(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-3"><label class="small text-muted">高(cm)</label><input type="number" class="form-control form-control-sm" value="' + (item.height || 0) + '" onchange="editUpdateHeight(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-3"><label class="small text-muted">单价</label><input type="number" class="form-control form-control-sm" value="' + item.price + '" onchange="editUpdatePrice(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-2"><label class="small text-muted">数量</label><input type="number" class="form-control form-control-sm" value="' + item.quantity + '" onchange="editUpdateQuantity(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-1">¥' + item.subtotal.toFixed(2) + '</div>';
+            html += '</div>';
+            html += '<input type="text" class="form-control form-control-sm mt-2" placeholder="备注" value="' + (item.remark || '') + '" onchange="editUpdateRemark(' + item.itemIndex + ', this.value)">';
+            html += '</div></div>';
+        });
+    }
+    
+    $('#editSelectedProductsArea').html(html);
+    $('#editOrderTotalAmount').text(total.toFixed(2));
+    
+    // 自动判断快递费方式
+    editAutoUpdateExpressFeeType(total);
+}
+
+function editRemoveProduct(idx) {
+    editSelectedProducts = editSelectedProducts.filter(function(p) { return p.itemIndex !== idx; });
+    editFilterProducts();
+    editRenderSelectedProducts();
+}
+
+function editUpdateWidth(idx, val) {
+    var p = editSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) p.width = parseFloat(val) || 0;
+}
+
+function editUpdateHeight(idx, val) {
+    var p = editSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) p.height = parseFloat(val) || 0;
+}
+
+function editUpdateQuantity(idx, val) {
+    var p = editSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) {
+        p.quantity = parseInt(val) || 1;
+        p.subtotal = p.price * p.quantity;
+        editRenderSelectedProducts();
+    }
+}
+
+function editUpdatePrice(idx, val) {
+    var p = editSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) {
+        p.price = parseFloat(val) || 0;
+        p.subtotal = p.price * p.quantity;
+        editRenderSelectedProducts();
+    }
+}
+
+function editUpdateRemark(idx, val) {
+    var p = editSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) p.remark = val;
+}
+
+function submitEditOrder() {
+    if (editSelectedProducts.length === 0) {
+        alert('请至少选择一个产品');
+        return;
+    }
+    
+    var data = {
+        items: editSelectedProducts,
+        express_method: $('input[name="editExpressMethod"]:checked').val() || '',
+        express_fee_type: $('input[name="editExpressFeeType"]:checked').val() || '',
+        express_shop_address: $('#editExpressShopAddress').val(),
+        express_shop_phone: $('#editExpressShopPhone').val(),
+        remark: $('#editOrderRemark').val()
+    };
+    
+    var total = 0;
+    editSelectedProducts.forEach(function(p) { total += p.subtotal; });
+    data.total_amount = total;
+    
+    $.ajax({
+        url: '/order/api/update/{{ order.id }}',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                $('#editOrderModal').modal('hide');
+                alert('修改成功');
+                location.reload();
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

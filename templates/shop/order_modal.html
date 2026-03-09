@@ -1,0 +1,71 @@
+<div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog modal-xl" style="max-width: 95%;">
+        <div class="modal-content" style="min-height: 70vh;">
+            <div class="modal-header">
+                <h5 class="modal-title">为店铺下单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <strong>店铺：</strong> <span id="orderShopName"></span>
+                </div>
+                
+                <!-- 分类选择区域 -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <strong>选择分类</strong>
+                            </div>
+                            <div class="card-body" id="categoryGroupList">
+                                <div class="text-muted">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 已选分类显示 -->
+                <div class="mb-3" id="selectedCategoriesCard" style="display:none;">
+                    <div class="d-flex flex-wrap align-items-center gap-2" id="selectedCategoriesArea">
+                    </div>
+                </div>
+                
+                <!-- 产品列表 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <strong>可选产品</strong>
+                        <small class="text-muted">点击产品添加到订单</small>
+                    </div>
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;" id="productListArea">
+                        <div class="text-muted text-center py-4">加载中...</div>
+                    </div>
+                </div>
+                
+                <!-- 已选产品 -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <strong>已选产品</strong>
+                        <small class="text-muted">共 <span id="selectedCount">0</span> 项</small>
+                    </div>
+                    <div class="card-body" style="max-height: 250px; overflow-y: auto;" id="selectedProductsArea">
+                        <div class="text-muted text-center py-4">未选择产品</div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-8 text-end">
+                        <strong>订单总金额：¥<span id="orderTotalAmount" class="text-primary fs-5">0.00</span></strong>
+                    </div>
+                    <div class="col-md-4">
+                        <textarea class="form-control" id="orderRemark" rows="1" placeholder="订单备注..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitOrder()">提交订单</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

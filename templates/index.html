@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h4 class="mb-0">
+        <i class="bi bi-house-door me-2"></i>欢迎使用客户管理系统
+    </h4>
+    <p class="text-muted mb-0 mt-2">选择左侧菜单开始操作</p>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-shop text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-1">店铺管理</h6>
+                        <h4 class="mb-0">店铺列表 & 停用</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="/shop/" class="text-primary text-decoration-none">
+                    进入管理 <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="table-card p-4">
+            <h5 class="mb-3">系统说明</h5>
+            <ul class="text-muted">
+                <li>本系统采用 Flask + MySQL 构建</li>
+                <li>支持店铺的增删改查功能</li>
+                <li>店铺状态管理（正常/停用）</li>
+                <li>后续将持续更新更多功能...</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

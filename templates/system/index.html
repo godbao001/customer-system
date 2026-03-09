@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}系统管理 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h4><i class="bi bi-gear me-2"></i>系统管理</h4>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h5>基础管理</h5>
+            </div>
+            <div class="p-3">
+                <a href="/system/basic" class="btn btn-primary btn-lg w-100 mb-3">
+                    <i class="bi bi-sliders me-2"></i>基础设置
+                </a>
+                <p class="text-muted">系统名称、LOGO等基础配置</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="p-3 border-bottom">
+                <h5>字段管理</h5>
+            </div>
+            <div class="p-3">
+                <a href="/system/field" class="btn btn-success btn-lg w-100 mb-3">
+                    <i class="bi bi-list-check me-2"></i>字段配置
+                </a>
+                <p class="text-muted">发货方式、快递费方式等字段选项配置</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

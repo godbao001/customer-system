@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}订单列表 - 客户管理系统{% endblock %}
+
+{% block content %}
+{% set status_map = {
+    1: '下单未确认',
+    2: '确认未付款',
+    3: '付款未制作',
+    4: '制作未打包',
+    5: '打包未发货',
+    6: '发货未到货',
+    7: '已到货'
+} %}
+{% set status_badge = {
+    1: 'bg-warning text-dark',
+    2: 'bg-info',
+    3: 'bg-primary',
+    4: 'bg-purple',
+    5: 'bg-orange',
+    6: 'bg-cyan',
+    7: 'bg-success'
+} %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">
+        <i class="bi bi-receipt me-2"></i>{{ status_map[status]|default('全部订单') }}
+    </h4>
+</div>
+
+<div class="table-card">
+    <div class="p-3 border-bottom">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-2">
+                <select class="form-select" id="statusFilter" onchange="loadData(1)">
+                    <option value="">全部状态</option>
+                    <option value="1" {% if status==1 %}selected{% endif %}>下单未确认</option>
+                    <option value="2" {% if status==2 %}selected{% endif %}>确认未付款</option>
+                    <option value="3" {% if status==3 %}selected{% endif %}>付款未制作</option>
+                    <option value="4" {% if status==4 %}selected{% endif %}>制作未打包</option>
+                    <option value="5" {% if status==5 %}selected{% endif %}>发货未到货</option>
+                    <option value="6" {% if status==6 %}selected{% endif %}>已到货</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索店铺名称..." oninput="searchByKeyword()">
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-responsive p-3">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr ondblclick="viewDetail(${item.id})" style="cursor:pointer" title="双击查看详情">
+                    <th>ID</th>
+                    
+                    <th>店铺名称</th>
+                    <th>订单金额</th>
+                    <th>快递费类型</th>
+                    <th>订单状态</th>
+                    <th>下单时间</th>
+                    <th>确认时间</th>
+                    <th>付款时间</th>
+                    <th>制作时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr ondblclick="viewDetail(${item.id})" style="cursor:pointer" title="双击查看详情">
+                    <td colspan="11" class="text-center text-muted py-4">
+                        <i class="bi bi-hourglass-split"></i> 加载中...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="p-3 border-top">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">共 <span id="totalCount">0</span> 条记录</div>
+            <nav>
+                <ul class="pagination mb-0" id="pagination"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.bg-purple { background-color: #9b59b6 !important; }
+.bg-orange { background-color: #e67e22 !important; }
+.bg-cyan { background-color: #17a2b8 !important; }
+</style>
+<script>
+let currentPage = 1;
+let currentStatus = {{ status|default(0) }};
+
+// 初始化
+$(function() {
+    if (currentStatus) {
+        $('#statusFilter').val(currentStatus);
+    }
+    loadData();
+});
+
+// 搜索
+function searchByKeyword() {
+    loadData(1);
+}
+
+// 加载数据
+function loadData(page = 1) {
+    currentPage = page;
+    const status = $('#statusFilter').val();
+    const search = $('#searchInput').val();
+    
+    $.get('/order/api/list', {
+        page: page,
+        limit: 12,
+        status: status,
+        search: search
+    }, function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+            renderPagination(res.count, page);
+            $('#totalCount').text(res.count);
+        }
+    });
+}
+
+// 渲染表格
+function renderTable(data) {
+    if (data.length === 0) {
+        $('#tableBody').html('<tr ondblclick="viewDetail(${item.id})" style="cursor:pointer" title="双击查看详情"><td colspan="11" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    const statusMap = {
+        1: '<span class="badge bg-warning text-dark">下单未确认</span>',
+        2: '<span class="badge bg-info">确认未付款</span>',
+        3: '<span class="badge bg-primary">付款未制作</span>',
+        4: '<span class="badge bg-purple text-white">制作未打包</span>',
+        5: '<span class="badge bg-orange text-white">发货未到货</span>',
+        6: '<span class="badge bg-success">已到货</span>'
+    };
+    
+    const nextStatus = {
+        1: { status: 2, text: '确认订单' },
+        2: { status: 3, text: '确认付款' },
+        3: { status: 4, text: '开始制作' },
+        4: { status: 5, text: '发货' },
+        5: { status: 6, text: '确认到货' }
+    };
+    
+    let html = '';
+    data.forEach(item => {
+        const next = nextStatus[item.status];
+        html += `
+        <tr ondblclick="viewDetail(${item.id})" style="cursor:pointer" title="双击查看详情">
+            <td>${item.id}</td>
+            
+            <td>[${item.shop_id}] ${item.shop_name}</td>
+            <td>¥${item.total_amount.toFixed(2)}</td>
+            <td>${item.express_fee_type || '-'}</td>
+            <td>${statusMap[item.status] || ''}</td>
+            <td>${item.order_time || '-'}</td>
+            <td>${item.confirm_time || '-'}</td>
+            <td>${item.pay_time || '-'}</td>
+            <td>${item.make_time || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); viewDetail(${item.id})">
+                    <i class="bi bi-eye"></i>
+                </button>
+                ${next ? `<button class="btn btn-sm btn-outline-success me-1" onclick="event.stopPropagation(); updateStatus(${item.id}, ${next.status}, '${next.text}')">
+                    <i class="bi bi-arrow-right-circle"></i> ${next.text}
+                </button>` : ''}
+                ${item.status <= 2 ? `<button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteOrder(${item.id})">
+                    <i class="bi bi-trash"></i>
+                </button>` : ''}
+            </td>
+        </tr>`;
+    });
+    $('#tableBody').html(html);
+}
+
+// 渲染分页
+function renderPagination(total, page) {
+    const totalPages = Math.ceil(total / 12);
+    if (totalPages <= 1) {
+        $('#pagination').html('');
+        return;
+    }
+    
+    let html = '';
+    html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:void(0)" data-page="${page - 1}">上一页</a>
+    </li>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<li class="page-item ${i === page ? 'active' : ''}">
+            <a class="page-link" href="javascript:void(0)" data-page="${i}">${i}</a>
+        </li>`;
+    }
+    
+    html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:void(0)" data-page="${page + 1}">下一页</a>
+    </li>`;
+    
+    $('#pagination').html(html);
+    
+    // 绑定分页点击事件
+    $('#pagination .page-link').on('click', function(e) {
+        e.preventDefault();
+        const p = $(this).data('page');
+        if (p && p > 0) {
+            loadData(p);
+        }
+    });
+}
+
+// 查看详情
+function viewDetail(id) {
+    var currentStatus = {{ status|default(0) }};
+    if (currentStatus > 0) {
+        window.location.href = '/order/detail/' + id + '?from_status=' + currentStatus;
+    } else {
+        window.location.href = '/order/detail/' + id;
+    }
+}
+
+// 更新订单状态
+function updateStatus(id, status, text) {
+    if (!confirm('确定要将订单状态改为"' + text + '"吗？')) return;
+    
+    $.ajax({
+        url: '/order/api/update_status/' + id,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({status: status}),
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+                alert('状态更新成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 删除订单
+function deleteOrder(id) {
+    if (!confirm('确定要删除该订单吗？')) return;
+    
+    $.ajax({
+        url: '/order/api/delete/' + id,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+                alert('删除成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

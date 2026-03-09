@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}停用列表 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">
+        <i class="bi bi-pause-circle me-2"></i>店铺管理
+    </h4>
+    <div>
+        <a href="/shop/" class="btn btn-outline-secondary btn-sm me-2">
+            <i class="bi bi-list-ul"></i> 店铺列表
+        </a>
+        <span class="badge bg-warning text-dark">停用列表</span>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="p-3 border-bottom">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-2">
+                <input type="number" class="form-control" id="searchId" placeholder="ID搜索" oninput="searchById()">
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchInput" placeholder="搜索店铺名称、电话、地址..." oninput="searchByKeyword()">
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-responsive p-3">
+        <table class="table table-hover align-middle" id="shopTable">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>店铺名称</th>
+                    <th>经营模式</th>
+                    <th>电话</th>
+                    <th>地址</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>更新时间</th>
+                    <th>备注</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                        <i class="bi bi-hourglass-split"></i> 加载中...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="p-3 border-top">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">共 <span id="totalCount">0</span> 条记录</div>
+            <nav>
+                <ul class="pagination mb-0" id="pagination"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let currentStatus = 0;  // 停用状态
+
+// ID精确搜索
+function searchById() {
+    const searchId = $('#searchId').val();
+    if (searchId) {
+        // 清空模糊搜索
+        $('#searchInput').val('');
+    }
+    loadData(1);
+}
+
+// 模糊搜索
+function searchByKeyword() {
+    const searchInput = $('#searchInput').val();
+    if (searchInput) {
+        // 清空ID搜索
+        $('#searchId').val('');
+    }
+    loadData(1);
+}
+
+// 加载数据
+function loadData(page = 1) {
+    currentPage = page;
+    const searchId = $('#searchId').val();
+    const search = $('#searchInput').val();
+    
+    $.get('/shop/api/list', {
+        status: currentStatus,
+        page: page,
+        limit: 12,
+        search_id: searchId,
+        search: search
+    }, function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+            renderPagination(res.count, page);
+            $('#totalCount').text(res.count);
+        }
+    });
+}
+
+// 渲染表格
+function renderTable(data) {
+    if (data.length === 0) {
+        $('#tableBody').html('<tr><td colspan="10" class="text-center text-muted py-4">暂无停用店铺</td></tr>');
+        return;
+    }
+    
+    let html = '';
+    data.forEach(item => {
+        // 拼接地区信息
+        let region = [item.region, item.province, item.city, item.district, item.address].filter(v => v).join(' ');
+        html += `
+        <tr>
+            <td>${item.id}</td>
+            <td><strong>${item.shop_name}</strong></td>
+            <td>${item.business_model || '-'}</td>
+            <td>${item.phone || '-'}</td>
+            <td>${region || '-'}</td>
+            <td><span class="badge status-disabled">已停用</span></td>
+            <td>${item.created_at}</td>
+            <td>${item.updated_at}</td>
+            <td>${item.remark || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-success me-1" onclick="toggleStatus(${item.id}, 1)">
+                    <i class="bi bi-play-circle"></i> 启用
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteShop(${item.id})">
+                    <i class="bi bi-trash"></i> 删除
+                </button>
+            </td>
+        </tr>`;
+    });
+    $('#tableBody').html(html);
+}
+
+// 渲染分页
+function renderPagination(total, page) {
+    const totalPages = Math.ceil(total / 12);
+    if (totalPages <= 1) {
+        $('#pagination').html('');
+        return;
+    }
+    
+    let html = '';
+    html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:void(0)" data-page="${page - 1}">上一页</a>
+    </li>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<li class="page-item ${i === page ? 'active' : ''}">
+            <a class="page-link" href="javascript:void(0)" data-page="${i}">${i}</a>
+        </li>`;
+    }
+    
+    html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:void(0)" data-page="${page + 1}">下一页</a>
+    </li>`;
+    
+    $('#pagination').html(html);
+    
+    // 绑定分页点击事件
+    $('#pagination .page-link').on('click', function(e) {
+        e.preventDefault();
+        const p = $(this).data('page');
+        if (p && p > 0) {
+            loadData(p);
+        }
+    });
+}
+
+// 切换状态
+function toggleStatus(id, status) {
+    if (!confirm(status === 1 ? '确定要启用该店铺吗？' : '确定要停用该店铺吗？')) return;
+    
+    $.ajax({
+        url: `/shop/api/toggle_status/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+                alert('操作成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 删除店铺
+function deleteShop(id) {
+    if (!confirm('确定要删除该店铺吗？此操作不可恢复！')) return;
+    
+    $.ajax({
+        url: `/shop/api/delete/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData(currentPage);
+                alert('删除成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+// 页面加载
+$(function() {
+    loadData();
+});
+</script>
+{% endblock %}
