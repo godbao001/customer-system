@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  customer-system:
+    build: .
+    container_name: customer-system
+    ports:
+      - "5000:5000"
+    environment:
+      - MYSQL_HOST=${MYSQL_HOST:-10.0.1.70}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_USER=${MYSQL_USER:-root}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-998135AAaa}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-hsay_20260303}
+    volumes:
+      - ./static/uploads:/app/static/uploads
+      - ./backup:/app/backup
+    restart: unless-stopped
+    network_mode: host

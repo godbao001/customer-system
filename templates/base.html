@@ -151,21 +151,14 @@
                 <div class="menu-title" onclick="toggleMenu(this)" style="cursor:pointer">客户管理 <i class="bi bi-chevron-down float-end"></i></div>
                 <ul class="nav flex-column sub-menu">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/shop/' or request.path == '/shop/disabled' %}active{% endif %}" href="/shop/">
-                            <i class="bi bi-shop"></i> 店铺管理
+                        <a class="nav-link {% if request.path == '/shop/' %}active{% endif %}" href="/shop/">
+                            <i class="bi bi-list-ul"></i> 客户列表
                         </a>
-                        <ul class="nav flex-column ms-3">
-                            <li class="nav-item">
-                                <a class="nav-link {% if request.path == '/shop/' %}active{% endif %}" href="/shop/">
-                                    <i class="bi bi-list-ul"></i> 店铺列表
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {% if request.path == '/shop/disabled' %}active{% endif %}" href="/shop/disabled">
-                                    <i class="bi bi-pause-circle"></i> 停用列表
-                                </a>
-                            </li>
-                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/shop/disabled' %}active{% endif %}" href="/shop/disabled">
+                            <i class="bi bi-pause-circle"></i> 停用列表
+                        </a>
                     </li>
                 </ul>
                 
@@ -211,31 +204,24 @@
                 <div class="menu-title" onclick="toggleMenu(this)" style="cursor:pointer">产品管理 <i class="bi bi-chevron-down float-end"></i></div>
                 <ul class="nav flex-column sub-menu">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path.startswith('/product') and request.path != '/product/group' and request.path != '/product/category' %}active{% endif %}" href="/product/">
-                            <i class="bi bi-box-seam"></i> 产品管理
+                        <a class="nav-link {% if request.path == '/product/' %}active{% endif %}" href="/product/">
+                            <i class="bi bi-list-ul"></i> 产品列表
                         </a>
-                        <ul class="nav flex-column ms-3">
-                            <li class="nav-item">
-                                <a class="nav-link {% if request.path == '/product/' %}active{% endif %}" href="/product/">
-                                    <i class="bi bi-list-ul"></i> 产品列表
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {% if request.path == '/product/disabled' %}active{% endif %}" href="/product/disabled">
-                                    <i class="bi bi-pause-circle"></i> 停用列表
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {% if request.path == '/product/group' %}active{% endif %}" href="/product/group">
-                                    <i class="bi bi-collection"></i> 分类组
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link {% if request.path == '/product/category' %}active{% endif %}" href="/product/category">
-                                    <i class="bi bi-tags"></i> 产品分类
-                                </a>
-                            </li>
-                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/product/disabled' %}active{% endif %}" href="/product/disabled">
+                            <i class="bi bi-pause-circle"></i> 停用列表
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/product/group' %}active{% endif %}" href="/product/group">
+                            <i class="bi bi-collection"></i> 分类组
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/product/category' %}active{% endif %}" href="/product/category">
+                            <i class="bi bi-tags"></i> 产品分类
+                        </a>
                     </li>
                 </ul>
                 
@@ -249,6 +235,11 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/system/field' %}active{% endif %}" href="/system/field">
                             <i class="bi bi-list-check"></i> 字段管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/system/log' %}active{% endif %}" href="/system/log">
+                            <i class="bi bi-journal-text"></i> 日志管理
                         </a>
                     </li>
                 </ul>

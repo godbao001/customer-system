@@ -181,3 +181,18 @@ def api_field_options():
     
     fields = FieldConfig.query.filter_by(field_type=field_type, status=1).order_by(FieldConfig.sort_order).all()
     return jsonify({'code': 0, 'data': [f.to_dict() for f in fields]})
+
+
+# ==================== 日志管理 ====================
+
+@system_bp.route('/log')
+def log():
+    return render_template('system/log.html')
+
+
+@system_bp.route('/api/log/list')
+def api_log_list():
+    """获取日志列表"""
+    # TODO: 后续完善日志查询逻辑
+    # 目前返回空列表
+    return jsonify({'code': 0, 'data': [], 'total': 0})
