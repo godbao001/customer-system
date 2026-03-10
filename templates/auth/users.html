@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-people me-2"></i>用户管理</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg me-1"></i> 添加用户
+    </button>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="6" class="text-center text-muted py-4">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalTitle">添加用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="userId">
+                <div class="mb-3">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" placeholder="请输入用户名">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">密码 <span class="text-muted">(编辑时留空则不修改)</span></label>
+                    <input type="password" class="form-control" id="password" placeholder="请输入密码">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">角色</label>
+                    <select class="form-select" id="roleSelect">
+                        <option value="">-- 无角色(无权限) --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveUser()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let rolesData = [];
+
+$(document).ready(function() {
+    loadRoles();
+    loadData();
+});
+
+function loadRoles() {
+    $.get('/api/roles', function(res) {
+        if (res.code === 0) {
+            rolesData = res.data;
+            const select = $('#roleSelect');
+            select.html('<option value="">-- 无角色(无权限) --</option>');
+            rolesData.forEach(role => {
+                select.append(`<option value="${role.id}">${role.role_name}</option>`);
+            });
+        }
+    });
+}
+
+function loadData() {
+    $.get('/api/users', function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+        }
+    });
+}
+
+function renderTable(data) {
+    const tbody = $('#tableBody');
+    if (data.length === 0) {
+        tbody.html('<tr><td colspan="6" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    let html = '';
+    data.forEach(item => {
+        html += `<tr>
+            <td>${item.id}</td>
+            <td><strong>${item.username}</strong></td>
+            <td>${item.role_name || '<span class="text-muted">无角色</span>'}</td>
+            <td><span class="badge bg-success">启用</span></td>
+            <td>${item.created_at || ''}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="editUser(${item.id}, '${item.username}', ${item.role_id || 'null'})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${item.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    tbody.html(html);
+}
+
+function showAddModal() {
+    $('#userId').val('');
+    $('#username').val('');
+    $('#password').val('');
+    $('#roleSelect').val('');
+    $('#userModalTitle').text('添加用户');
+    $('#userModal').modal('show');
+}
+
+function editUser(id, username, roleId) {
+    $('#userId').val(id);
+    $('#username').val(username);
+    $('#username').attr('readonly', true);
+    $('#password').val('');
+    $('#roleSelect').val(roleId || '');
+    $('#userModalTitle').text('编辑用户');
+    $('#userModal').modal('show');
+}
+
+function saveUser() {
+    const id = $('#userId').val();
+    const username = $('#username').val().trim();
+    const password = $('#password').val();
+    const roleId = $('#roleSelect').val() || null;
+    
+    if (!username) {
+        alert('请输入用户名');
+        return;
+    }
+    
+    if (!id && !password) {
+        alert('请输入密码');
+        return;
+    }
+    
+    const data = {
+        role_id: roleId
+    };
+    
+    if (password) {
+        data.password = password;
+    }
+    
+    const url = id ? `/api/users/edit/${id}` : '/api/users/add';
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                // 如果是新增，需要传用户名和密码
+                if (!id) {
+                    data.username = username;
+                    $.ajax({
+                        url: '/api/users/add',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(data),
+                        success: function(res2) {
+                            if (res2.code === 0) {
+                                $('#userModal').modal('hide');
+                                loadData();
+                                alert('添加成功');
+                            } else {
+                                alert(res2.msg);
+                            }
+                        }
+                    });
+                } else {
+                    $('#userModal').modal('hide');
+                    loadData();
+                    alert('修改成功');
+                }
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+function deleteUser(id) {
+    if (!confirm('确定要禁用该用户吗？')) return;
+    
+    $.ajax({
+        url: `/api/users/delete/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData();
+                alert('禁用成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

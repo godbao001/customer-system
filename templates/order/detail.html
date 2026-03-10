@@ -217,8 +217,16 @@ $(function() {
     var urlParams = new URLSearchParams(window.location.search);
     var fromShop = urlParams.get('from_shop');
     var fromStatus = urlParams.get('from_status');
+    var fromShopOrders = urlParams.get('from_shop_orders');
     
-    if (fromShop) {
+    if (fromShopOrders === '1' && fromShop) {
+        // 从历史订单弹窗进入，设置返回按钮打开历史订单弹窗
+        $('#backBtn').attr('href', 'javascript:void(0)');
+        $('#backBtn').on('click', function() {
+            // 跳转到客户列表页，并通过URL参数触发历史订单弹窗
+            window.location.href = '/shop/?show_shop_orders=' + fromShop;
+        });
+    } else if (fromShop) {
         $('#backBtn').attr('href', '/shop/?backToOrders=' + fromShop);
     } else if (fromStatus) {
         $('#backBtn').attr('href', '/order/status/' + fromStatus);
@@ -237,6 +245,17 @@ function updateStatus(status) {
         5: '发货未到货',
         6: '已到货'
     };
+    
+    // 确认订单或确认付款时，检查地址和电话是否填写
+    if (status === 2 || status === 3) {
+        const address = '{{ order.express_shop_address or "" }}';
+        const phone = '{{ order.express_shop_phone or "" }}';
+        if (!address || !phone) {
+            alert('请先填写门店地址和门店电话');
+            return;
+        }
+    }
+    
     if (!confirm('确定要将订单状态改为"' + statusText[status] + '"吗？')) return;
     
     $.ajax({

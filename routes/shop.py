@@ -1,7 +1,7 @@
 # 店铺管理路由
 from flask import Blueprint, render_template, request, jsonify
-from models import db, Shop, get_pinyin, get_pinyin_initial
-from sqlalchemy import or_
+from models import db, Shop, Order, get_pinyin, get_pinyin_initial
+from sqlalchemy import or_, func
 from utils.address_parser import parse_address
 from utils.kuaibao_parser import clear_address
 
@@ -61,11 +61,29 @@ def api_list():
     pagination = query.order_by(Shop.id.desc()).paginate(page=page, per_page=limit, error_out=False)
     shops = pagination.items
     
+    # 为每个店铺添加订单统计信息
+    shop_data = []
+    for shop in shops:
+        shop_dict = shop.to_dict()
+        
+        # 查询订单统计
+        order_stats = db.session.query(
+            func.count(Order.id).label('order_count'),
+            func.coalesce(func.sum(Order.total_amount), 0).label('total_amount'),
+            func.max(Order.order_time).label('last_order_time')
+        ).filter(Order.shop_id == shop.id).first()
+        
+        shop_dict['order_count'] = order_stats.order_count or 0
+        shop_dict['total_amount'] = float(order_stats.total_amount or 0)
+        shop_dict['last_order_time'] = order_stats.last_order_time.strftime('%Y-%m-%d %H:%M:%S') if order_stats.last_order_time else ''
+        
+        shop_data.append(shop_dict)
+    
     return jsonify({
         'code': 0,
         'msg': 'success',
         'count': total_count,
-        'data': [shop.to_dict() for shop in shops]
+        'data': shop_data
     })
 
 # 添加店铺

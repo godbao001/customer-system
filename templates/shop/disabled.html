@@ -2,33 +2,47 @@
 
 {% block title %}停用列表 - 客户管理系统{% endblock %}
 
+{% block extra_css %}
+<style>
+.table tbody tr {
+    --bs-table-bg: transparent !important;
+}
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+.toast-item { min-width: 250px; margin-bottom: 10px; animation: slideIn 0.3s ease; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-header d-flex justify-content-between align-items-center">
     <h4 class="mb-0">
-        <i class="bi bi-pause-circle me-2"></i>客户管理
+        <i class="bi bi-pause-circle me-2"></i>停用客户列表
     </h4>
     <div>
-        <a href="/shop/" class="btn btn-outline-secondary btn-sm me-2">
-            <i class="bi bi-list-ul"></i> 客户列表
+        <a href="/shop/" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> 返回客户列表
         </a>
-        <span class="badge bg-warning text-dark">停用列表</span>
     </div>
 </div>
 
-<div class="row mb-3">
-    <div class="col-md-2">
+<!-- Toast 提示容器 -->
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="row mb-3 align-items-center">
+    <div class="col-12 col-md-3 mb-2 mb-md-0">
+        <input type="text" class="form-control" id="searchInput" placeholder="搜索：店铺名称/电话/地址/拼音...">
+    </div>
+    <div class="col-12 col-md-2 mb-2 mb-md-0">
         <input type="number" class="form-control" id="searchIdInput" placeholder="输入ID精确搜索">
     </div>
-    <div class="col-md-4">
-        <div class="input-group">
-            <input type="text" class="form-control" id="searchInput" placeholder="搜索：ID/店铺名称/电话/地址/拼音...">
-            <button class="btn btn-outline-secondary" onclick="loadData(1)">
-                <i class="bi bi-search"></i>
-            </button>
+    <div class="col-12 col-md-4 mb-2 mb-md-0">
+        <div class="btn-group" role="group" id="businessModelFilter" style="flex-wrap: wrap;">
         </div>
     </div>
-    <div class="col-md-2">
-        <button class="btn btn-outline-primary w-100" onclick="searchById()">ID搜索</button>
+    <div class="col-12 col-md-3">
+        <button class="btn btn-primary me-2" onclick="loadData(1)">
+            <i class="bi bi-search"></i> 搜索
+        </button>
     </div>
 </div>
 
@@ -41,25 +55,42 @@
                     <th>店铺名称</th>
                     <th>经营模式</th>
                     <th>电话</th>
-                    <th>大区</th>
-                    <th>省</th>
-                    <th>市</th>
-                    <th>区</th>
-                    <th>详细地址</th>
+                    <th>地址</th>
                     <th>创建时间</th>
-                    <th>更改时间</th>
-                    <th>备注</th>
-                    <th>状态</th>
                     <th>操作</th>
                 </tr>
             </thead>
-            <tbody id="tableBody"></tbody>
+            <tbody id="tableBody">
+                <tr><td colspan="7"><div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div><p class="mt-2 text-muted">加载中...</p></div></td></tr>
+            </tbody>
         </table>
     </div>
-    <div class="p-3">
+    <div class="d-flex justify-content-between align-items-center p-3">
+        <div class="text-muted" id="totalCount"></div>
         <nav>
-            <ul class="pagination justify-content-center mb-0" id="pagination"></ul>
+            <ul class="pagination justify-content-end mb-0" id="pagination"></ul>
         </nav>
+    </div>
+</div>
+
+<!-- 确认删除弹窗 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要彻底删除该客户吗？</p>
+                <p class="text-muted">此操作不可恢复！</p>
+                <input type="hidden" id="deleteShopId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">确认删除</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -67,14 +98,114 @@
 
 {% block extra_js %}
 <script>
+// ==================== Toast 提示函数 ====================
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast-item alert alert-${type} alert-dismissible`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    toastContainer.appendChild(toast);
+    setTimeout(function() {
+        toast.remove();
+    }, 5000);
+}
+
+// ==================== 变量 ====================
+let businessModels = [];
+let businessModelColors = {};
+let defaultBusinessModel = '';
+let selectedBusinessModel = '';
+let searchTimer = null;
+
+// ==================== 页面初始化 ====================
 $(document).ready(function() {
+    loadBusinessModels();
     loadData(1);
+    
+    // 搜索框回车事件
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadData(1);
+        }
+    });
+    
+    document.getElementById('searchIdInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadData(1);
+        }
+    });
 });
 
-// 加载数据
+// ==================== 加载经营模式 ====================
+function loadBusinessModels() {
+    fetch('/system/api/field/options?field_type=business_model')
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                const filterContainer = document.getElementById('businessModelFilter');
+                filterContainer.innerHTML = '';
+                
+                const items = data.data;
+                
+                // 添加"全部"按钮
+                const allBtn = document.createElement('button');
+                allBtn.type = 'button';
+                allBtn.className = 'btn btn-sm btn-primary';
+                allBtn.textContent = '全部';
+                allBtn.onclick = function() {
+                    selectedBusinessModel = '';
+                    loadData(1);
+                    updateButtons();
+                };
+                filterContainer.appendChild(allBtn);
+                
+                // 添加各经营模式按钮
+                items.forEach(item => {
+                    businessModels.push(item.field_name);
+                    businessModelColors[item.field_name] = item.color || '';
+                    
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-sm btn-outline-secondary';
+                    btn.value = item.field_name;
+                    btn.textContent = item.field_name;
+                    btn.onclick = function() {
+                        selectedBusinessModel = item.field_name;
+                        loadData(1);
+                        updateButtons();
+                    };
+                    filterContainer.appendChild(btn);
+                });
+                
+                updateButtons();
+            }
+        });
+}
+
+function updateButtons() {
+    const buttons = document.querySelectorAll('#businessModelFilter button');
+    buttons.forEach(btn => {
+        if (btn.value === selectedBusinessModel) {
+            btn.className = 'btn btn-sm btn-primary';
+        } else if (!btn.value && selectedBusinessModel === '') {
+            btn.className = 'btn btn-sm btn-primary';
+        } else {
+            btn.className = 'btn btn-sm btn-outline-secondary';
+        }
+    });
+}
+
+// ==================== 加载数据 ====================
 function loadData(page) {
     const search = document.getElementById('searchInput').value;
     const searchId = document.getElementById('searchIdInput').value;
+    
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '<tr><td colspan="7"><div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div><p class="mt-2 text-muted">加载中...</p></div></td></tr>';
     
     const params = new URLSearchParams({
         status: 0,
@@ -84,63 +215,80 @@ function loadData(page) {
         search_id: searchId
     });
     
+    if (selectedBusinessModel) {
+        params.append('business_model', selectedBusinessModel);
+    }
+    
     fetch(`/shop/api/list?${params}`)
         .then(res => res.json())
         .then(data => {
             if (data.code === 0) {
                 renderTable(data.data);
                 renderPagination(data.count, page);
+                document.getElementById('totalCount').textContent = `共 ${data.count} 条`;
             }
         });
 }
 
-// 搜索ID
-function searchById() {
-    loadData(1);
-}
-
-// 渲染表格
+// ==================== 渲染表格 ====================
 function renderTable(data) {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
     
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="14" class="text-center text-muted py-4">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size: 2rem;"></i><p class="mt-2">暂无数据</p></td></tr>';
         return;
     }
     
     data.forEach(item => {
+        const addressParts = [item.region, item.province, item.city, item.district, item.address].filter(Boolean);
+        const address = addressParts.join(' ');
+        
+        // 根据经营模式设置背景色
+        let bgStyle = '';
+        if (item.business_model && businessModelColors[item.business_model]) {
+            const colorClass = businessModelColors[item.business_model];
+            const colorMap = {
+                'bg-danger': '#ffebee',
+                'bg-primary': '#cfe2ff',
+                'bg-success': '#d1e7dd',
+                'bg-warning': '#fff3cd',
+                'bg-info': '#cff4fc'
+            };
+            const bgColor = colorMap[colorClass];
+            if (bgColor) {
+                bgStyle = `style="background-color: ${bgColor}; --bs-table-bg: transparent !important;"`;
+            }
+        }
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${item.id}</td>
             <td>${item.shop_name || ''}</td>
             <td>${item.business_model || ''}</td>
             <td>${item.phone || ''}</td>
-            <td>${item.region || ''}</td>
-            <td>${item.province || ''}</td>
-            <td>${item.city || ''}</td>
-            <td>${item.district || ''}</td>
-            <td>${item.address || ''}</td>
+            <td>${address || '-'}</td>
             <td>${item.created_at || ''}</td>
-            <td>${item.updated_at || ''}</td>
-            <td>${item.remark || ''}</td>
             <td>
-                <span class="badge bg-secondary">已停用</span>
-            </td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary me-1" onclick="showEditModal(${item.id})">
-                    <i class="bi bi-pencil"></i>
+                <button class="btn btn-sm btn-outline-success me-1" onclick="restoreStatus(${item.id})" title="恢复使用">
+                    <i class="bi bi-play-fill"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-success" onclick="toggleStatus(${item.id}, 0)">
-                    <i class="bi bi-play-fill"></i> 启用
+                <button class="btn btn-sm btn-outline-danger" onclick="showDeleteModal(${item.id})" title="彻底删除">
+                    <i class="bi bi-trash"></i>
                 </button>
             </td>
         `;
+        
+        if (bgStyle) {
+            tr.setAttribute('style', bgStyle);
+            tr.style.setProperty('--bs-table-bg', 'transparent', 'important');
+        }
+        
         tbody.appendChild(tr);
     });
 }
 
-// 渲染分页
+// ==================== 渲染分页 ====================
 function renderPagination(total, currentPage) {
     const totalPages = Math.ceil(total / 12);
     const pagination = document.getElementById('pagination');
@@ -153,10 +301,10 @@ function renderPagination(total, currentPage) {
     }
     
     for (let i = 1; i <= totalPages; i++) {
-        if (i === currentPage) {
-            pagination.innerHTML += `<li class="page-item active"><a class="page-link" href="javascript:void(0)">${i}</a></li>`;
-        } else if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
-            pagination.innerHTML += `<li class="page-item"><a class="page-link" href="javascript:loadData(${i})">${i}</a></li>`;
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            pagination.innerHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}"><a class="page-link" href="javascript:loadData(${i})">${i}</a></li>`;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            pagination.innerHTML += `<li class="page-item disabled"><a class="page-link" href="javascript:void(0)">...</a></li>`;
         }
     }
     
@@ -165,37 +313,49 @@ function renderPagination(total, currentPage) {
     }
 }
 
-// 显示编辑弹窗
-function showEditModal(id) {
-    fetch(`/shop/api/get/${id}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.code === 0) {
-                alert('编辑功能开发中，请到客户列表页面编辑');
-                window.location.href = '/shop/';
-            }
-        });
-}
-
-// 切换状态
-function toggleStatus(id, status) {
-    const action = status === 1 ? '启用' : '停用';
-    
-    if (confirm(`确定要${action}该客户吗？`)) {
+// ==================== 恢复使用 ====================
+function restoreStatus(id) {
+    if (confirm('确定要恢复使用该客户吗？')) {
         fetch(`/shop/api/toggle_status/${id}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({status: status})
+            body: JSON.stringify({status: 1})
         })
         .then(res => res.json())
         .then(data => {
             if (data.code === 0) {
+                showToast('恢复成功', 'success');
                 loadData(1);
             } else {
-                alert(data.msg);
+                showToast(data.msg || '恢复失败', 'danger');
             }
         });
     }
+}
+
+// ==================== 删除相关 ====================
+function showDeleteModal(id) {
+    document.getElementById('deleteShopId').value = id;
+    $('#deleteModal').modal('show');
+}
+
+function confirmDelete() {
+    const id = document.getElementById('deleteShopId').value;
+    $('#deleteModal').modal('hide');
+    
+    fetch(`/shop/api/delete/${id}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.code === 0) {
+            showToast('删除成功', 'success');
+            loadData(1);
+        } else {
+            showToast(data.msg || '删除失败', 'danger');
+        }
+    });
 }
 </script>
 {% endblock %}

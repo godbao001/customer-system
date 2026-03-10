@@ -378,3 +378,47 @@ class FieldConfig(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else ''
         }
+
+
+# ==================== 用户和角色模型 ====================
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(50), unique=True, nullable=False, comment='用户名')
+    password_hash = db.Column(db.String(255), nullable=False, comment='密码哈希')
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=True, comment='角色ID')
+    status = db.Column(db.Integer, default=1, comment='状态: 1=启用, 0=禁用')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    
+    role = db.relationship('Role', backref='users')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'role_id': self.role_id,
+            'role_name': self.role.role_name if self.role else '',
+            'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+
+class Role(db.Model):
+    __tablename__ = 'roles'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    role_name = db.Column(db.String(50), nullable=False, comment='角色名称')
+    permissions = db.Column(db.Text, default='[]', comment='权限JSON')
+    status = db.Column(db.Integer, default=1, comment='状态: 1=启用, 0=禁用')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    
+    def to_dict(self):
+        import json
+        return {
+            'id': self.id,
+            'role_name': self.role_name,
+            'permissions': json.loads(self.permissions) if self.permissions else [],
+            'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}修改订单 - 客户管理系统{% endblock %}
+{% block title %}{% if is_new %}下单 - 客户管理系统{% else %}修改订单 - 客户管理系统{% endif %}{% endblock %}
 
 {% block content %}
 <div class="content-header d-flex justify-content-between align-items-center">
     <h4 class="mb-0">
-        <i class="bi bi-pencil me-2"></i>修改订单
+        <i class="bi bi-{% if is_new %}plus-circle{% else %}pencil{% endif %} me-2"></i>{% if is_new %}下单{% else %}修改订单{% endif %}
     </h4>
     <div>
         <a href="#" class="btn btn-outline-secondary btn-sm" id="backBtn">
@@ -13,6 +13,12 @@
         </a>
     </div>
 </div>
+
+{% if is_new %}
+<div class="alert alert-info mb-3">
+    <strong>下单店铺：</strong>[{{ order.shop_id }}] {{ order.shop.shop_name if order.shop else '' }}
+</div>
+{% endif %}
 
 <!-- 第一行：快递信息 + 选择分类 并列 -->
 <div class="row mb-3">
@@ -125,7 +131,7 @@
                 <strong>订单总金额：¥<span id="orderTotalAmount" class="text-primary fs-5">0.00</span></strong>
             </div>
             <button class="btn btn-primary btn-lg" onclick="saveOrder()">
-                <i class="bi bi-save"></i> 保存修改
+                <i class="bi bi-save"></i> {% if is_new %}提交订单{% else %}保存修改{% endif %}
             </button>
         </div>
     </div>
@@ -134,8 +140,9 @@
 
 {% block extra_js %}
 <script>
-var orderId = {{ order.id }};
+var orderId = {{ order.id if order.id else 'null' }};
 var shopId = {{ order.shop_id }};
+var isNewOrder = {{ 'true' if is_new else 'false' }};
 var selectedProducts = [];
 var allProducts = [];
 var categoryGroups = [];
@@ -147,15 +154,24 @@ $(function() {
     var urlParams = new URLSearchParams(window.location.search);
     var fromShop = urlParams.get('from_shop');
     var fromStatus = urlParams.get('from_status');
-    if (fromShop) {
-        $('#backBtn').attr('href', '/order/detail/' + orderId + '?from_shop=' + fromShop);
-    } else if (fromStatus) {
-        $('#backBtn').attr('href', '/order/detail/' + orderId + '?from_status=' + fromStatus);
+    
+    if (isNewOrder) {
+        // 新增订单，返回到客户列表
+        $('#backBtn').attr('href', '/shop/');
     } else {
-        $('#backBtn').attr('href', '/order/detail/' + orderId);
+        // 修改订单，返回到订单详情
+        if (fromShop) {
+            $('#backBtn').attr('href', '/order/detail/' + orderId + '?from_shop=' + fromShop);
+        } else if (fromStatus) {
+            $('#backBtn').attr('href', '/order/detail/' + orderId + '?from_status=' + fromStatus);
+        } else {
+            $('#backBtn').attr('href', '/order/detail/' + orderId);
+        }
     }
     
-    loadOrderItems();
+    if (!isNewOrder) {
+        loadOrderItems();
+    }
     loadCategoryGroupsAndProducts();
 });
 
@@ -502,7 +518,13 @@ function updateRemark(itemIndex, newRemark) {
 }
 
 function saveOrder() {
+    if (selectedProducts.length === 0) {
+        alert('请至少选择一个产品');
+        return;
+    }
+    
     var data = {
+        shop_id: shopId,
         items: selectedProducts,
         express_method: $('input[name="express_method"]:checked').val() || '',
         express_fee_type: $('input[name="express_fee_type"]:checked').val() || '',
@@ -515,21 +537,28 @@ function saveOrder() {
     selectedProducts.forEach(function(p) { total += p.subtotal; });
     data.total_amount = total;
     
+    var apiUrl = isNewOrder ? '/order/api/add' : '/order/api/update/' + orderId;
+    
     $.ajax({
-        url: '/order/api/update/' + orderId,
+        url: apiUrl,
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(data),
         success: function(res) {
             if (res.code === 0) {
-                alert('保存成功');
-                var urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('from_shop')) {
-                    window.location.href = '/order/detail/' + orderId + '?from_shop=' + urlParams.get('from_shop');
-                } else if (urlParams.get('from_status')) {
-                    window.location.href = '/order/detail/' + orderId + '?from_status=' + urlParams.get('from_status');
+                alert(isNewOrder ? '下单成功' : '保存成功');
+                if (isNewOrder) {
+                    // 新增订单后跳转到订单详情
+                    window.location.href = '/order/detail/' + res.data.id;
                 } else {
-                    window.location.href = '/order/detail/' + orderId;
+                    var urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('from_shop')) {
+                        window.location.href = '/order/detail/' + orderId + '?from_shop=' + urlParams.get('from_shop');
+                    } else if (urlParams.get('from_status')) {
+                        window.location.href = '/order/detail/' + orderId + '?from_status=' + urlParams.get('from_status');
+                    } else {
+                        window.location.href = '/order/detail/' + orderId;
+                    }
                 }
             } else {
                 alert(res.msg);

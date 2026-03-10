@@ -52,11 +52,10 @@
             <thead class="table-light">
                 <tr ondblclick="viewDetail(${item.id})" style="cursor:pointer" title="双击查看详情">
                     <th>ID</th>
-                    
+                    <th>订单状态</th>
                     <th>店铺名称</th>
                     <th>订单金额</th>
                     <th>快递费类型</th>
-                    <th>订单状态</th>
                     <th>下单时间</th>
                     <th>确认时间</th>
                     <th>付款时间</th>
@@ -158,11 +157,10 @@ function renderTable(data) {
         html += `
         <tr ondblclick="viewDetail(${item.id})" style="cursor:pointer" title="双击查看详情">
             <td>${item.id}</td>
-            
+            <td>${statusMap[item.status] || ''}</td>
             <td>[${item.shop_id}] ${item.shop_name}</td>
             <td>¥${item.total_amount.toFixed(2)}</td>
             <td>${item.express_fee_type || '-'}</td>
-            <td>${statusMap[item.status] || ''}</td>
             <td>${item.order_time || '-'}</td>
             <td>${item.confirm_time || '-'}</td>
             <td>${item.pay_time || '-'}</td>

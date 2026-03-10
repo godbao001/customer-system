@@ -3,6 +3,17 @@
 {% block title %}客户列表 - 客户管理系统{% endblock %}
 
 {% block extra_css %}
+<style>
+.table tbody tr {
+    --bs-table-bg: transparent !important;
+}
+.bg-purple { background-color: #9b59b6 !important; }
+.bg-orange { background-color: #e67e22 !important; }
+.bg-cyan { background-color: #17a2b8 !important; }
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+.toast-item { min-width: 250px; margin-bottom: 10px; animation: slideIn 0.3s ease; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -13,34 +24,59 @@
     </button>
 </div>
 
-<div class="row mb-3">
-    <div class="col-md-3">
-        <div class="input-group">
-            <input type="text" class="form-control" id="searchInput" placeholder="搜索：店铺名称/电话/地址/拼音...">
+<div class="row mb-3 align-items-center">
+    <div class="col-12 col-md-2 mb-2 mb-md-0">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="columnSettingsBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-table"></i> 列管理
+            </button>
+            <ul class="dropdown-menu p-3" aria-labelledby="columnSettingsBtn" style="min-width: 200px;" id="columnSettingsMenu">
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_id" checked><label class="form-check-label" for="col_id">ID</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_shop_name" checked><label class="form-check-label" for="col_shop_name">店铺名称</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_phone" checked><label class="form-check-label" for="col_phone">电话</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_address" checked><label class="form-check-label" for="col_address">地址</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_order_count" checked><label class="form-check-label" for="col_order_count">下单次数</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_total_amount" checked><label class="form-check-label" for="col_total_amount">累计消费</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_last_order_time" checked><label class="form-check-label" for="col_last_order_time">最后下单</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_created_at" checked><label class="form-check-label" for="col_created_at">创建时间</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_updated_at" checked><label class="form-check-label" for="col_updated_at">更改时间</label></div></li>
+                <li><div class="form-check"><input class="form-check-input column-toggle" type="checkbox" id="col_remark" checked><label class="form-check-label" for="col_remark">备注</label></div></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="btn btn-sm btn-outline-secondary w-100" onclick="resetColumnSettings()">恢复默认</button></li>
+            </ul>
         </div>
     </div>
-    <div class="col-md-2">
+    <div class="col-12 col-md-3 mb-2 mb-md-0">
+        <input type="text" class="form-control" id="searchInput" placeholder="搜索：店铺名称/电话/地址/拼音...">
+    </div>
+    <div class="col-12 col-md-2 mb-2 mb-md-0">
         <input type="number" class="form-control" id="searchIdInput" placeholder="输入ID精确搜索">
     </div>
-    <div class="col-md-7">
+    <div class="col-12 col-md-5">
         <div class="btn-group" role="group" id="businessModelFilter" style="flex-wrap: wrap;">
         </div>
     </div>
 </div>
+
+<!-- Toast 提示容器 -->
+<div class="toast-container" id="toastContainer"></div>
 
 <div class="table-card">
     <div class="table-responsive">
         <table class="table table-hover">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>店铺名称</th>
-                    <th>电话</th>
-                    <th>地址</th>
-                    <th>创建时间</th>
-                    <th>更改时间</th>
-                    <th>备注</th>
-                    <th>操作</th>
+                    <th data-col="id">ID</th>
+                    <th data-col="shop_name">店铺名称</th>
+                    <th data-col="phone">电话</th>
+                    <th data-col="address">地址</th>
+                    <th data-col="order_count">下单次数</th>
+                    <th data-col="total_amount">累计消费</th>
+                    <th data-col="last_order_time">最后下单</th>
+                    <th data-col="created_at">创建时间</th>
+                    <th data-col="updated_at">更改时间</th>
+                    <th data-col="remark">备注</th>
+                    <th data-col="action">操作</th>
                 </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -130,19 +166,154 @@
 
 <!-- 下订单弹窗 -->
 <div class="modal fade" id="orderModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: 95%; min-height: 80vh;">
+        <div class="modal-content" style="min-height: 75vh;">
             <div class="modal-header">
-                <h5 class="modal-title">下单</h5>
+                <h5 class="modal-title"><i class="bi bi-cart-plus me-2"></i>下单</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>确定要为 <strong id="orderShopName"></strong> 下单吗？</p>
-                <input type="hidden" id="orderShopId">
+                <div class="alert alert-info mb-3">
+                    <strong>下单店铺：</strong><span id="orderShopName"></span>
+                    <input type="hidden" id="orderShopId">
+                </div>
+                
+                <!-- 第一行：快递信息 + 选择分类 -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <strong><i class="bi bi-truck"></i> 快递信息</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label">门店地址</label>
+                                        <input type="text" class="form-control" id="orderExpressShopAddress">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">门店电话</label>
+                                        <input type="text" class="form-control" id="orderExpressShopPhone">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">快递方式</label>
+                                        <div id="orderExpressMethodList">
+                                            <div class="text-muted"><i class="bi bi-arrow-repeat spin"></i> 加载中...</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">快递费类型</label>
+                                        <div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="orderExpressFeeType" value="寄付">
+                                                <label class="form-check-label">寄付</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="orderExpressFeeType" value="到付" checked>
+                                                <label class="form-check-label">到付</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <strong>选择分类</strong>
+                                <span id="orderSelectedCategoryTags"></span>
+                            </div>
+                            <div class="card-body" style="max-height: 250px; overflow-y: auto;" id="orderCategoryGroupList">
+                                <div class="text-muted"><i class="bi bi-arrow-repeat spin"></i> 加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 第二行：可选产品 + 已选产品 -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <strong>可选产品</strong>
+                            </div>
+                            <div class="card-body" style="max-height: 350px; overflow-y: auto;" id="orderProductListArea">
+                                <div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div><p class="mt-2 text-muted"><i class="bi bi-arrow-repeat spin"></i> 加载中...</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <strong>已选产品</strong>
+                                <div>
+                                    <small class="text-muted me-2">共 <span id="orderSelectedCount">0</span> 项</small>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <input type="radio" class="btn-check" name="orderDisplayMode" id="orderModeCard" checked onchange="orderSetDisplayMode('card')">
+                                        <label class="btn btn-outline-primary" for="orderModeCard">卡片</label>
+                                        <input type="radio" class="btn-check" name="orderDisplayMode" id="orderModeTable" onchange="orderSetDisplayMode('table')">
+                                        <label class="btn btn-outline-primary" for="orderModeTable">表格</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body" style="max-height: 350px; overflow-y: auto;" id="orderSelectedProductsArea">
+                                <div class="text-muted text-center py-4"><i class="bi bi-cart" style="font-size: 2rem;"></i><p class="mt-2">未选择产品</p></div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>订单总金额：¥<span id="orderTotalAmount" class="text-primary fs-5">0.00</span></strong>
+                            </div>
+                            <textarea class="form-control" id="orderRemark" rows="1" placeholder="订单备注..." style="width: 200px; display: inline-block;"></textarea>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="createOrder()">确认下单</button>
+                <button type="button" class="btn btn-primary" onclick="submitOrder()">提交订单</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 历史订单弹窗 -->
+<div class="modal fade" id="shopOrdersModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 98%; min-height: 80vh;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>历史订单 - <span id="shopOrdersShopName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>订单ID</th>
+                                <th>地址</th>
+                                <th>电话</th>
+                                <th>订单金额</th>
+                                <th>快递方式</th>
+                                <th>快递费类型</th>
+                                <th>订单状态</th>
+                                <th>下单时间</th>
+                                <th>确认时间</th>
+                                <th>付款时间</th>
+                                <th>制作时间</th>
+                                <th>发货时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shopOrdersTableBody">
+                            <tr><td colspan="13"><div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div><p class="mt-2 text-muted"><i class="bi bi-arrow-repeat spin"></i> 加载中...</p></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -152,12 +323,167 @@
 
 {% block extra_js %}
 <script>
+// ==================== Toast 提示函数 ====================
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast-item alert alert-${type} alert-dismissible`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    toastContainer.appendChild(toast);
+    // 5秒后自动移除
+    setTimeout(function() {
+        toast.remove();
+    }, 5000);
+}
+
+// ==================== 加载动画 ====================
+function getLoadingSpinner() {
+    return '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">加载中...</span></div><p class="mt-2 text-muted"><i class="bi bi-arrow-repeat spin"></i> 加载中...</p></div>';
+}
+
+// ==================== 金额格式化 ====================
+function formatMoney(amount) {
+    const num = parseFloat(amount) || 0;
+    return '¥' + num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// ==================== 公共配置 ====================
+const colorMap = {
+    'bg-danger': { bg: '#ffebee', text: '#dc3545', border: '#dc3545', hoverBg: '#ffebee' },
+    'bg-primary': { bg: '#cfe2ff', text: '#0d6efd', border: '#0d6efd', hoverBg: '#cfe2ff' },
+    'bg-success': { bg: '#d1e7dd', text: '#198754', border: '#198754', hoverBg: '#d1e7dd' },
+    'bg-warning': { bg: '#fff3cd', text: '#b38600', border: '#ffc107', hoverBg: '#fff3cd' },
+    'bg-info': { bg: '#cff4fc', text: '#0dcaf0', border: '#0dcaf0', hoverBg: '#cff4fc' }
+};
+
+function getColorBg(colorClass) {
+    return colorMap[colorClass]?.bg || 'transparent';
+}
+
+function getColorText(colorClass) {
+    return colorMap[colorClass]?.text || '#000000';
+}
+
+function getColorBorder(colorClass) {
+    return colorMap[colorClass]?.border || '#333';
+}
+
+function getColorHoverBg(colorClass) {
+    return colorMap[colorClass]?.hoverBg || '#6c757d';
+}
+
+// ==================== 订单状态公共函数 ====================
+function getOrderStatusInfo(status) {
+    const statusMap = {
+        1: { badge: '下单未确认', class: 'bg-warning text-dark' },
+        2: { badge: '确认未付款', class: 'bg-info' },
+        3: { badge: '付款未制作', class: 'bg-primary' },
+        4: { badge: '制作未打包', class: 'bg-purple' },
+        5: { badge: '发货未到货', class: 'bg-orange' },
+        6: { badge: '已到货', class: 'bg-success' }
+    };
+    const info = statusMap[status];
+    return info || { badge: '未知', class: 'bg-secondary' };
+}
+
+// ==================== 客户列表变量 ====================
 let businessModels = [];
 let businessModelColors = {};
 let defaultBusinessModel = '';
 let searchTimer = null;
+let businessModelsLoaded = false;
+
+// ==================== 列配置 ====================
+const defaultColumnSettings = {
+    id: true,
+    shop_name: true,
+    phone: true,
+    address: true,
+    order_count: true,
+    total_amount: true,
+    last_order_time: true,
+    created_at: true,
+    updated_at: true,
+    remark: true,
+    action: true
+};
+
+function getColumnSettings() {
+    const saved = localStorage.getItem('shopListColumns');
+    return saved ? JSON.parse(saved) : {...defaultColumnSettings};
+}
+
+function saveColumnSettings(settings) {
+    localStorage.setItem('shopListColumns', JSON.stringify(settings));
+    applyColumnSettings(settings);
+}
+
+function applyColumnSettings(settings) {
+    // 应用到表头
+    document.querySelectorAll('thead th[data-col]').forEach(th => {
+        const col = th.getAttribute('data-col');
+        th.style.display = settings[col] ? '' : 'none';
+    });
+    
+    // 应用到表格内容（通过 renderTable）
+    // 立即刷新数据
+    loadData(1);
+}
+
+function resetColumnSettings() {
+    localStorage.removeItem('shopListColumns');
+    const settings = {...defaultColumnSettings};
+    updateColumnCheckboxes(settings);
+    applyColumnSettings(settings);
+}
+
+function updateColumnCheckboxes(settings) {
+    document.querySelectorAll('.column-toggle').forEach(cb => {
+        const col = cb.id.replace('col_', '');
+        cb.checked = settings[col] !== false;
+    });
+}
+
+function initColumnSettings() {
+    const settings = getColumnSettings();
+    updateColumnCheckboxes(settings);
+    applyColumnSettings(settings);
+    
+    // 绑定复选框事件
+    document.querySelectorAll('.column-toggle').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const settings = getColumnSettings();
+            const col = this.id.replace('col_', '');
+            settings[col] = this.checked;
+            saveColumnSettings(settings);
+        });
+    });
+}
 
 $(document).ready(function() {
+    // 初始化列配置
+    initColumnSettings();
+    
+    // 检测是否需要打开历史订单弹窗
+    let urlParams = new URLSearchParams(window.location.search);
+    let shopOrdersToShow = urlParams.get('show_shop_orders');
+    if (shopOrdersToShow) {
+        // 先加载店铺名称
+        fetch('/shop/api/get/' + shopOrdersToShow)
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 0) {
+                    showShopOrders(parseInt(shopOrdersToShow), data.data.shop_name);
+                }
+            });
+        // 清除URL参数
+        history.replaceState({}, '', '/shop/');
+    }
+    
     loadBusinessModels().then(function() {
         loadData(1);
     });
@@ -169,21 +495,51 @@ $(document).ready(function() {
         }, 500);
     });
     
+    // 回车键触发搜索
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(searchTimer);
+            loadData(1);
+        }
+    });
+    
     document.getElementById('searchIdInput').addEventListener('input', function() {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(function() {
             loadData(1);
         }, 500);
     });
+    
+    // 回车键触发搜索
+    document.getElementById('searchIdInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            clearTimeout(searchTimer);
+            loadData(1);
+        }
+    });
 });
 
 function loadBusinessModels() {
+    // 如果已加载，直接返回
+    if (businessModelsLoaded) {
+        return Promise.resolve();
+    }
+    
     return fetch('/system/api/field/options?field_type=business_model')
         .then(res => res.json())
         .then(data => {
             if (data.code === 0) {
                 const formSelect = document.getElementById('businessModel');
+                const filterContainer = document.getElementById('businessModelFilter');
+                
+                // 清空之前的内容，避免重复添加
+                formSelect.innerHTML = '';
+                filterContainer.innerHTML = '';
+                
                 const items = data.data;
+                
+                // 标记已加载
+                businessModelsLoaded = true;
                 
                 let defaultItem = items.find(item => item.is_default == 1);
                 if (!defaultItem && items.length > 0) {
@@ -203,7 +559,6 @@ function loadBusinessModels() {
                     option.textContent = item.field_name;
                     formSelect.appendChild(option);
                     
-                    const filterContainer = document.getElementById('businessModelFilter');
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'btn btn-sm business-model-btn';
@@ -211,7 +566,7 @@ function loadBusinessModels() {
                     
                     let btnStyle = 'padding: 8px 16px; font-size: 15px;';
                     if (item.color && item.color !== '') {
-                        let borderColor = item.color === 'bg-danger' ? '#dc3545' : item.color === 'bg-primary' ? '#0d6efd' : item.color === 'bg-success' ? '#198754' : item.color === 'bg-warning' ? '#ffc107' : item.color === 'bg-info' ? '#0dcaf0' : '#333';
+                        let borderColor = getColorBorder(item.color);
                         btnStyle += `background-color: white; border: 2px solid ${borderColor}; color: ${borderColor};`;
                     } else {
                         btnStyle += 'background-color: white; border: 2px solid #333; color: #333;';
@@ -230,7 +585,7 @@ function loadBusinessModels() {
                         if (idx === 0) hoverStyle += 'border-radius: 25px 0 0 25px;';
                         else if (idx === total - 1) hoverStyle += 'border-radius: 0 25px 25px 0;';
                         
-                        let bgColor = item.color === 'bg-danger' ? '#ffebee' : item.color === 'bg-primary' ? '#cfe2ff' : item.color === 'bg-success' ? '#d1e7dd' : item.color === 'bg-warning' ? '#fff3cd' : item.color === 'bg-info' ? '#cff4fc' : '#6c757d';
+                        let bgColor = getColorHoverBg(item.color);
                         hoverStyle += `background-color: ${bgColor}; border: 2px solid ${bgColor}; color: black;`;
                         this.style = hoverStyle;
                     };
@@ -247,7 +602,7 @@ function loadBusinessModels() {
                             else if (idx === total - 1) normalStyle += 'border-radius: 0 25px 25px 0;';
                             
                             if (item.color && item.color !== '') {
-                                let borderColor = item.color === 'bg-danger' ? '#dc3545' : item.color === 'bg-primary' ? '#0d6efd' : item.color === 'bg-success' ? '#198754' : item.color === 'bg-warning' ? '#ffc107' : item.color === 'bg-info' ? '#0dcaf0' : '#333';
+                                let borderColor = getColorBorder(item.color);
                                 normalStyle += `background-color: white; border: 2px solid ${borderColor}; color: ${borderColor};`;
                             } else {
                                 normalStyle += 'background-color: white; border: 2px solid #333; color: #333;';
@@ -274,7 +629,7 @@ function loadBusinessModels() {
                             else if (index === totalBtns - 1) restoreStyle += 'border-radius: 0 25px 25px 0;';
                             
                             if (originalItem && originalItem.color && originalItem.color !== '') {
-                                let borderColor = originalItem.color === 'bg-danger' ? '#dc3545' : originalItem.color === 'bg-primary' ? '#0d6efd' : originalItem.color === 'bg-success' ? '#198754' : originalItem.color === 'bg-warning' ? '#ffc107' : originalItem.color === 'bg-info' ? '#0dcaf0' : '#333';
+                                let borderColor = getColorBorder(originalItem.color);
                                 restoreStyle += `background-color: white; border: 2px solid ${borderColor}; color: ${borderColor};`;
                             } else {
                                 restoreStyle += 'background-color: white; border: 2px solid #333; color: #333;';
@@ -287,7 +642,7 @@ function loadBusinessModels() {
                         if (btnIndex === 0) activeStyle += 'border-radius: 25px 0 0 25px;';
                         else if (btnIndex === totalBtns - 1) activeStyle += 'border-radius: 0 25px 25px 0;';
                         
-                        let bgColor = item.color === 'bg-danger' ? '#ffebee' : item.color === 'bg-primary' ? '#cfe2ff' : item.color === 'bg-success' ? '#d1e7dd' : item.color === 'bg-warning' ? '#fff3cd' : item.color === 'bg-info' ? '#cff4fc' : '#6c757d';
+                        let bgColor = getColorHoverBg(item.color);
                         activeStyle += `background-color: ${bgColor}; border: 2px solid ${bgColor}; color: black;`;
                         this.style = activeStyle;
                         loadData(1);
@@ -305,7 +660,6 @@ function loadBusinessModels() {
                     }
                 }, 50);
                 
-                const filterContainer = document.getElementById('businessModelFilter');
                 const allBtn = document.createElement('button');
                 allBtn.type = 'button';
                 allBtn.className = 'btn btn-sm business-model-btn active clicked';
@@ -370,8 +724,14 @@ function renderTable(data) {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
     
+    // 获取列配置
+    const columnSettings = getColumnSettings();
+    
+    // 计算显示的列数
+    const visibleColumns = Object.values(columnSettings).filter(v => v).length;
+    
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${visibleColumns}" class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size: 2rem;"></i><p class="mt-2">暂无数据</p></td></tr>`;
         return;
     }
     
@@ -380,26 +740,73 @@ function renderTable(data) {
         const address = addressParts.join(' ');
         
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${item.id}</td>
-            <td>${item.shop_name || ''}</td>
-            <td>${item.phone || ''}</td>
-            <td>${address}</td>
-            <td>${item.created_at || ''}</td>
-            <td>${item.updated_at || ''}</td>
-            <td>${item.remark || ''}</td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary me-1" onclick="showEditModal(${item.id})">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStatus(${item.id}, ${item.status})">
-                    <i class="bi bi-${item.status === 1 ? 'pause' : 'play'}-fill"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-success" onclick="showOrderModal(${item.id}, '${item.shop_name}')">
-                    <i class="bi bi-cart-plus"></i>
-                </button>
-            </td>
-        `;
+        tr.style.cursor = 'pointer';
+        tr.ondblclick = function() {
+            showOrderModal(item.id, item.shop_name);
+        };
+        
+        // 根据经营模式设置背景颜色
+        const businessModel = item.business_model;
+        if (businessModel && businessModelColors[businessModel]) {
+            const colorClass = businessModelColors[businessModel];
+            let bgColor = getColorBg(colorClass);
+            if (bgColor && bgColor !== 'transparent') {
+                tr.style.setProperty('background-color', bgColor, 'important');
+            }
+        }
+        
+        let html = '';
+        
+        if (columnSettings.id) {
+            html += `<td>${item.id}</td>`;
+        }
+        if (columnSettings.shop_name) {
+            html += `<td>${item.shop_name || ''}</td>`;
+        }
+        if (columnSettings.phone) {
+            html += `<td>${item.phone || ''}</td>`;
+        }
+        if (columnSettings.address) {
+            html += `<td>${address}</td>`;
+        }
+        if (columnSettings.order_count) {
+            html += `<td class="text-center">${item.order_count || 0}</td>`;
+        }
+        if (columnSettings.total_amount) {
+            html += `<td class="text-end">${formatMoney(item.total_amount || 0)}</td>`;
+        }
+        if (columnSettings.last_order_time) {
+            html += `<td>${item.last_order_time || '-'}</td>`;
+        }
+        if (columnSettings.created_at) {
+            html += `<td>${item.created_at || ''}</td>`;
+        }
+        if (columnSettings.updated_at) {
+            html += `<td>${item.updated_at || ''}</td>`;
+        }
+        if (columnSettings.remark) {
+            html += `<td>${item.remark || ''}</td>`;
+        }
+        if (columnSettings.action) {
+            html += `
+                <td>
+                    <button class="btn btn-sm btn-outline-info me-1" onclick="showShopOrders(${item.id}, '${item.shop_name}')" title="历史订单">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="showEditModal(${item.id})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStatus(${item.id}, ${item.status})">
+                        <i class="bi bi-${item.status === 1 ? 'pause' : 'play'}-fill"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="showOrderModal(${item.id}, '${item.shop_name}')">
+                        <i class="bi bi-cart-plus"></i>
+                    </button>
+                </td>
+            `;
+        }
+        
+        tr.innerHTML = html;
         tbody.appendChild(tr);
     });
 }
@@ -492,7 +899,7 @@ function showEditModal(id) {
 function parseAddress() {
     const address = document.getElementById('addressInput').value.trim();
     if (!address) {
-        alert('请输入地址');
+        showToast('请输入地址', 'warning');
         return;
     }
     
@@ -511,11 +918,11 @@ function parseAddress() {
             document.getElementById('district').value = data.data.district || '';
             document.getElementById('detailAddress').value = data.data.detail || '';
         } else {
-            alert(data.msg || '地址解析失败');
+            showToast(data.msg || '地址解析失败', 'warning');
         }
     })
     .catch(err => {
-        alert('地址解析失败，请重试');
+        showToast('地址解析失败，请重试', 'danger');
     });
 }
 
@@ -643,7 +1050,7 @@ function saveShop() {
     const allAddressFilled = region && province && city && (detail || district);
     
     if (hasAddress && !allAddressFilled) {
-        alert('地址信息不完整，请填写完整地址或留空');
+        showToast('地址信息不完整，请填写完整地址或留空', 'warning');
         return;
     }
     
@@ -678,7 +1085,7 @@ function saveShop() {
         };
         
         const url = shopId ? `/shop/api/edit/${shopId}` : '/shop/api/add';
-        const method = shopId ? 'PUT' : 'POST';
+        const method = 'POST';
         
         return fetch(url, {
             method: method,
@@ -692,7 +1099,7 @@ function saveShop() {
             $('#shopModal').modal('hide');
             loadData(1);
         } else {
-            alert(data.msg);
+            showToast(data.msg, 'warning');
         }
     })
     .catch(err => {
@@ -715,22 +1122,640 @@ function toggleStatus(id, currentStatus) {
             if (data.code === 0) {
                 loadData(1);
             } else {
-                alert(data.msg);
+                showToast(data.msg, 'warning');
             }
         });
     }
 }
 
+// ============= 下单弹窗相关变量 =============
+var orderSelectedProducts = [];
+var orderAllProducts = [];
+var orderCategoryGroups = [];
+var orderSelectedCategoryMap = {};
+var orderDisplayMode = 'card';
+var orderShopAddress = '';
+var orderShopPhone = '';
+var orderSystemConfig = { free_shipping_amount: 0 };
+
+// 弹窗打开时加载数据（产品数据已在 showOrderModal 中加载）
+
+// 弹窗关闭时清理数据
+$('#orderModal').on('hidden.bs.modal', function() {
+    orderSelectedProducts = [];
+    orderSelectedCategoryMap = {};
+    document.getElementById('orderExpressShopAddress').value = '';
+    document.getElementById('orderExpressShopPhone').value = '';
+    document.getElementById('orderRemark').value = '';
+    document.getElementById('orderTotalAmount').textContent = '0.00';
+    document.getElementById('orderSelectedCount').textContent = '0';
+    orderRenderSelectedProducts();
+    orderRenderFilteredProducts();
+});
+
 function showOrderModal(id, name) {
     document.getElementById('orderShopId').value = id;
-    document.getElementById('orderShopName').textContent = name;
-    $('#orderModal').modal('show');
+    
+    // 先获取经营模式配置，确保 businessModelColors 已加载
+    loadBusinessModels().then(function() {
+        // 获取店铺信息
+        fetch('/shop/api/get/' + id)
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 0) {
+                    const shop = data.data;
+                    // 拼接地址：大区 省 市 区 详细地址
+                    const addressParts = [shop.region, shop.province, shop.city, shop.district, shop.address].filter(Boolean);
+                    orderShopAddress = addressParts.join(' ');
+                    orderShopPhone = shop.phone || '';
+                    document.getElementById('orderExpressShopAddress').value = orderShopAddress;
+                    document.getElementById('orderExpressShopPhone').value = orderShopPhone;
+                    
+                    // 构建显示文字：[ID][经营模式]店铺名称(备注)
+                    let shopText = '[' + shop.id + ']';
+                    if (shop.business_model) {
+                        shopText += '[' + shop.business_model + ']';
+                    }
+                    shopText += ' ' + shop.shop_name;
+                    if (shop.remark) {
+                        shopText += '(' + shop.remark + ')';
+                    }
+                    
+                    // 设置文字颜色为经营模式的标记颜色
+                    const orderShopNameEl = document.getElementById('orderShopName');
+                    orderShopNameEl.textContent = shopText;
+                    orderShopNameEl.style.color = '#000000'; // 默认黑色
+                    
+                    // 从 businessModelColors 获取颜色
+                    if (shop.business_model && businessModelColors[shop.business_model]) {
+                        const colorClass = businessModelColors[shop.business_model];
+                        let textColor = getColorText(colorClass);
+                        if (textColor) {
+                            orderShopNameEl.style.color = textColor;
+                        }
+                    }
+                }
+            });
+        
+        // 重置状态
+        orderSelectedProducts = [];
+        orderAllProducts = [];
+        orderSelectedCategoryMap = {};
+        
+        $('#orderModal').modal('show');
+        
+        // 加载数据
+        loadOrderSystemConfig();
+        loadOrderProducts();
+        loadOrderExpressMethods();
+    });
 }
 
-function createOrder() {
-    const shopId = document.getElementById('orderShopId').value;
-    $('#orderModal').modal('hide');
-    window.location.href = `/order/?shop_id=${shopId}`;
+function loadOrderSystemConfig() {
+    $.get('/system/api/basic/get', function(res) {
+        if (res.code === 0) {
+            orderSystemConfig.free_shipping_amount = parseInt(res.data.free_shipping_amount) || 0;
+        }
+    });
 }
+
+function orderAutoUpdateExpressFeeType(total) {
+    // 1. 无产品 → 默认为到付
+    if (!orderSelectedProducts || orderSelectedProducts.length === 0) {
+        $('input[name="orderExpressFeeType"][value="到付"]').prop('checked', true);
+        return;
+    }
+    
+    // 2. 检查是否有包邮产品
+    let hasFreeShipping = false;
+    if (orderAllProducts && orderAllProducts.length > 0) {
+        for (var i = 0; i < orderSelectedProducts.length; i++) {
+            var p = orderAllProducts.find(function(x) { return x.id === orderSelectedProducts[i].product_id; });
+            if (p && p.free_shipping == 1) {
+                hasFreeShipping = true;
+                break;
+            }
+        }
+    }
+    
+    // 3. 判断是否满足包邮条件
+    let freeShippingAmount = parseFloat(orderSystemConfig.free_shipping_amount) || 0;
+    let orderTotal = parseFloat(total) || 0;
+    let shouldFreeShipping = hasFreeShipping || orderTotal >= freeShippingAmount;
+    
+    // 4. 自动选择快递费方式
+    if (shouldFreeShipping) {
+        $('input[name="orderExpressFeeType"][value="寄付"]').prop('checked', true);
+    } else {
+        $('input[name="orderExpressFeeType"][value="到付"]').prop('checked', true);
+    }
+}
+
+function loadOrderProducts() {
+    $.when(
+        $.get('/product/api/list', { status: 1, sales_status: 1, page: 1, limit: 1000 }),
+        $.get('/product/api/category/tree')
+    ).done(function(productsRes, categoriesRes) {
+        if (productsRes[0].code === 0) {
+            orderAllProducts = productsRes[0].data;
+        }
+        
+        if (categoriesRes[0].code === 0) {
+            orderCategoryGroups = categoriesRes[0].data;
+            
+            // 默认选中分类
+            orderCategoryGroups.forEach(function(group) {
+                var defaultCategory = null;
+                if (group.categories && group.categories.length > 0) {
+                    var defaultCat = group.categories.find(function(c) { return c.is_default == 1; });
+                    if (defaultCat) {
+                        defaultCategory = defaultCat.id;
+                    }
+                }
+                orderSelectedCategoryMap[group.group_id] = defaultCategory;
+            });
+            
+            orderRenderCategoryGroups();
+            orderRenderSelectedCategories();
+            orderRenderFilteredProducts();
+        }
+    });
+}
+
+function loadOrderExpressMethods() {
+    $.get('/system/api/field/list?field_type=express_method', function(res) {
+        var html = '';
+        if (res.code === 0 && res.data.length > 0) {
+            var sortedData = res.data.sort(function(a, b) { return b.sort_order - a.sort_order; });
+            var defaultItem = sortedData.find(function(item) { return item.is_default === 1; });
+            sortedData.forEach(function(item, idx) {
+                var checked = defaultItem && item.is_default === 1 ? ' checked' : (idx === 0 && html === '' ? ' checked' : '');
+                html += '<div class="form-check form-check-inline">';
+                html += '<input class="form-check-input" type="radio" name="orderExpressMethod" id="orderExpressMethod' + item.id + '" value="' + item.field_name + '"' + checked + '>';
+                html += '<label class="form-check-label" for="orderExpressMethod' + item.id + '">' + item.field_name + '</label>';
+                html += '</div>';
+            });
+        } else {
+            var methods = ['顺丰快递', '自提', '送货', '滴滴'];
+            methods.forEach(function(m, idx) {
+                var checked = idx === 0 ? ' checked' : '';
+                html += '<div class="form-check form-check-inline">';
+                html += '<input class="form-check-input" type="radio" name="orderExpressMethod" value="' + m + '"' + checked + '>';
+                html += '<label class="form-check-label">' + m + '</label>';
+                html += '</div>';
+            });
+        }
+        $('#orderExpressMethodList').html(html);
+    });
+}
+
+function orderRenderCategoryGroups() {
+    let html = '';
+    if (orderCategoryGroups.length === 0) {
+        $('#orderCategoryGroupList').html('<div class="text-muted">暂无分类组</div>');
+        return;
+    }
+    
+    orderCategoryGroups.forEach(function(group) {
+        var currentSelection = orderSelectedCategoryMap[group.group_id];
+        
+        html += '<div class="mb-2 d-flex align-items-center">';
+        html += '<span class="fw-bold text-primary" style="min-width: 80px;">' + group.group_name + '</span>';
+        
+        if (group.categories && group.categories.length > 0) {
+            var isAllSelected = currentSelection === null || currentSelection === undefined;
+            html += '<div class="form-check form-check-inline">';
+            html += '<input class="form-check-input" type="radio" name="order_cat_' + group.group_id + '" id="order_cat_all_' + group.group_id + '" ' + (isAllSelected ? 'checked' : '') + ' onchange="orderSelectCategory(' + group.group_id + ', null)">';
+            html += '<label class="form-check-label small fw-bold" style="min-width: 28px;cursor:pointer;" for="order_cat_all_' + group.group_id + '">全部</label>';
+            html += '</div>';
+            
+            group.categories.forEach(function(cat) {
+                var isSelected = currentSelection === cat.id;
+                html += '<div class="form-check form-check-inline">';
+                html += '<input class="form-check-input" type="radio" name="order_cat_' + group.group_id + '" id="order_cat_' + cat.id + '" ' + (isSelected ? 'checked' : '') + ' onchange="orderSelectCategory(' + group.group_id + ', ' + cat.id + ')">';
+                html += '<label class="form-check-label small" style="cursor:pointer;" for="order_cat_' + cat.id + '">' + cat.category_name + '</label>';
+                html += '</div>';
+            });
+        }
+        
+        html += '</div><hr>';
+    });
+    $('#orderCategoryGroupList').html(html);
+}
+
+function orderSelectCategory(groupId, categoryId) {
+    orderSelectedCategoryMap[groupId] = categoryId;
+    orderRenderCategoryGroups();
+    orderRenderSelectedCategories();
+    orderRenderFilteredProducts();
+}
+
+function orderRenderSelectedCategories() {
+    let tagsArea = $('#orderSelectedCategoryTags');
+    
+    let selectedHtml = '';
+    let hasSelection = false;
+    
+    orderCategoryGroups.forEach(function(group) {
+        var catId = orderSelectedCategoryMap[group.group_id];
+        if (catId !== null && catId !== undefined) {
+            hasSelection = true;
+            var cat = group.categories.find(function(c) { return c.id === catId; });
+            var catName = cat ? cat.category_name : '';
+            selectedHtml += '<span class="badge bg-primary me-1" style="cursor:pointer;" onclick="orderSelectCategory(' + group.group_id + ', null)">' + group.group_name + ': ' + catName + ' <span style="cursor:pointer;margin-left:3px;" onclick="orderSelectCategory(' + group.group_id + ', null)">×</span></span>';
+        }
+    });
+    
+    if (hasSelection) {
+        tagsArea.html(selectedHtml);
+    } else {
+        tagsArea.html('');
+    }
+}
+
+function orderSetDisplayMode(m) {
+    orderDisplayMode = m;
+    orderRenderSelectedProducts();
+}
+
+function orderRenderFilteredProducts() {
+    if (!orderAllProducts || orderAllProducts.length === 0) {
+        $('#orderProductListArea').html('<div class="text-muted text-center py-4">加载产品中...</div>');
+        return;
+    }
+    
+    let filteredProducts = orderAllProducts.filter(function(product) {
+        if (!product || !product.product_name) {
+            return false;
+        }
+        
+        if (!orderCategoryGroups || orderCategoryGroups.length === 0) {
+            return true;
+        }
+        
+        if (!product.categories || product.categories.length === 0) {
+            for (var i = 0; i < orderCategoryGroups.length; i++) {
+                var group = orderCategoryGroups[i];
+                var selectedCatId = orderSelectedCategoryMap[group.group_id];
+                if (selectedCatId !== null && selectedCatId !== undefined) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        for (var i = 0; i < orderCategoryGroups.length; i++) {
+            var group = orderCategoryGroups[i];
+            var selectedCatId = orderSelectedCategoryMap[group.group_id];
+            
+            if (selectedCatId === null || selectedCatId === undefined) {
+                continue;
+            }
+            
+            var productCat = product.categories.find(function(c) { return c.group_id == group.group_id; });
+            if (!productCat) {
+                return false;
+            }
+            if (productCat.category_id !== selectedCatId) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    if (filteredProducts.length === 0) {
+        $('#orderProductListArea').html('<div class="text-muted text-center py-4">暂无符合条件的产品</div>');
+        return;
+    }
+    
+    if (orderDisplayMode === 'card') {
+        var html = '<div class="row">';
+        filteredProducts.forEach(function(p) {
+            var isSelected = orderSelectedProducts.some(function(s) { return s.product_id === p.id; });
+            html += '<div class="col-md-6 mb-2">';
+            html += '<div class="card ' + (isSelected ? 'border-primary' : '') + '" style="cursor:pointer; position: relative;" onclick="orderToggleProduct(' + p.id + ', \'' + p.product_name.replace(/'/g, "\\'") + '\', ' + p.price + ', ' + (p.width||0) + ', ' + (p.height||0) + ')">';
+            html += '<div class="card-body py-2"><div class="d-flex justify-content-between"><strong>' + p.product_name + '</strong>';
+            html += isSelected ? '<span class="badge bg-primary">已选</span>' : '';
+            html += '</div>';
+            html += '<small class="text-muted me-1">' + (p.width||0) + 'x' + (p.height||0) + 'cm</small></div>';
+            html += '<div style="position: absolute; bottom: 8px; right: 12px; font-size: 16px; font-weight: bold; color: #dc3545;">¥' + p.price + '</div>';
+            html += '</div></div>';
+        });
+        html += '</div>';
+        $('#orderProductListArea').html(html);
+    } else {
+        var html = '<table class="table table-sm table-hover"><thead><tr><th>产品</th><th>尺寸</th><th>单价</th><th>操作</th></tr></thead><tbody>';
+        filteredProducts.forEach(function(p) {
+            var isSelected = orderSelectedProducts.some(function(s) { return s.product_id === p.id; });
+            html += '<tr' + (isSelected ? ' class="table-primary"' : '') + ' style="cursor:pointer" onclick="orderToggleProduct(' + p.id + ', \'' + p.product_name.replace(/'/g, "\\'") + '\', ' + p.price + ', ' + (p.width||0) + ', ' + (p.height||0) + ')">';
+            html += '<td>' + p.product_name + '</td><td>' + (p.width||0) + 'x' + (p.height||0) + 'cm</td><td>¥' + p.price + '</td><td>' + (isSelected ? '✓ 已选' : '点击添加') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        $('#orderProductListArea').html(html);
+    }
+}
+
+function orderToggleProduct(id, name, price, w, h) {
+    let unmodifiedIndex = -1;
+    for (var i = 0; i < orderSelectedProducts.length; i++) {
+        if (orderSelectedProducts[i].product_id === id) {
+            var item = orderSelectedProducts[i];
+            var isModified = (item.width !== w || item.height !== h || (item.remark && item.remark.trim() !== ''));
+            if (!isModified) {
+                unmodifiedIndex = i;
+                break;
+            }
+        }
+    }
+    
+    if (unmodifiedIndex > -1) {
+        orderSelectedProducts[unmodifiedIndex].quantity += 1;
+        orderSelectedProducts[unmodifiedIndex].subtotal = orderSelectedProducts[unmodifiedIndex].price * orderSelectedProducts[unmodifiedIndex].quantity;
+    } else {
+        orderSelectedProducts.push({
+            itemIndex: Date.now(),
+            product_id: id,
+            product_name: name,
+            price: price,
+            width: w,
+            height: h,
+            original_width: w,
+            original_height: h,
+            quantity: 1,
+            subtotal: price,
+            remark: ''
+        });
+    }
+    orderRenderFilteredProducts();
+    orderRenderSelectedProducts();
+}
+
+function orderRenderSelectedProducts() {
+    $('#orderSelectedCount').text(orderSelectedProducts.length);
+    
+    if (orderSelectedProducts.length === 0) {
+        $('#orderSelectedProductsArea').html('<div class="text-muted text-center py-4">未选择产品</div>');
+        $('#orderTotalAmount').text('0.00');
+        // 删除最后一件产品后也要自动判断快递费类型
+        orderAutoUpdateExpressFeeType(0);
+        return;
+    }
+    
+    let total = 0;
+    let html = '';
+    
+    if (orderDisplayMode === 'table') {
+        html += '<div class="table-responsive" style="max-height: 320px; overflow-y: auto;">';
+        html += '<table class="table table-bordered table-sm table-striped table-hover" style="margin-bottom: 0;">';
+        html += '<thead class="table-light sticky-top"><tr>';
+        html += '<th style="width: 25%;">产品名称</th>';
+        html += '<th style="width: 8%;">宽(cm)</th>';
+        html += '<th style="width: 8%;">高(cm)</th>';
+        html += '<th style="width: 12%;">单价</th>';
+        html += '<th style="width: 8%;">数量</th>';
+        html += '<th style="width: 12%;">小计</th>';
+        html += '<th style="width: 20%;">备注</th>';
+        html += '<th style="width: 7%;">操作</th>';
+        html += '</tr></thead>';
+        html += '<tbody>';
+        orderSelectedProducts.forEach(function(item) {
+            total += item.subtotal;
+            var remark = item.remark || '-';
+            var displayRemark = remark.length > 10 ? remark.substring(0, 10) + '...' : remark;
+            
+            html += '<tr>';
+            html += '<td><strong>' + item.product_name + '</strong></td>';
+            html += '<td class="text-center">' + (item.width || 0) + ' cm</td>';
+            html += '<td class="text-center">' + (item.height || 0) + ' cm</td>';
+            html += '<td class="text-end">¥' + item.price.toFixed(2) + '</td>';
+            html += '<td class="text-center">' + item.quantity + '</td>';
+            html += '<td class="text-end"><strong>¥' + item.subtotal.toFixed(2) + '</strong></td>';
+            html += '<td><span class="text-muted">' + displayRemark + '</span></td>';
+            html += '<td class="text-center"><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="orderRemoveProduct(' + item.itemIndex + ')">×</button></td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+    } else {
+        orderSelectedProducts.forEach(function(item) {
+            total += item.subtotal;
+            html += '<div class="card mb-2"><div class="card-body py-2">';
+            html += '<div class="d-flex justify-content-between mb-2"><strong>' + item.product_name + '</strong>';
+            html += '<button class="btn btn-sm btn-outline-danger" onclick="orderRemoveProduct(' + item.itemIndex + ')">×</button></div>';
+            html += '<div class="row g-1">';
+            html += '<div class="col-3"><label class="small text-muted">宽(cm)</label><input type="number" class="form-control form-control-sm" value="' + (item.width || 0) + '" onchange="orderUpdateWidth(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-3"><label class="small text-muted">高(cm)</label><input type="number" class="form-control form-control-sm" value="' + (item.height || 0) + '" onchange="orderUpdateHeight(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-3"><label class="small text-muted">单价</label><input type="number" class="form-control form-control-sm" value="' + item.price + '" onchange="orderUpdatePrice(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-2"><label class="small text-muted">数量</label><input type="number" class="form-control form-control-sm" value="' + item.quantity + '" onchange="orderUpdateQuantity(' + item.itemIndex + ', this.value)"></div>';
+            html += '<div class="col-1">¥' + item.subtotal.toFixed(2) + '</div>';
+            html += '</div>';
+            html += '<input type="text" class="form-control form-control-sm mt-2" placeholder="备注" value="' + (item.remark || '') + '" onchange="orderUpdateRemark(' + item.itemIndex + ', this.value)">';
+            html += '</div></div>';
+        });
+    }
+    
+    $('#orderSelectedProductsArea').html(html);
+    $('#orderTotalAmount').text(total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+    
+    // 自动判断快递费类型
+    orderAutoUpdateExpressFeeType(total);
+}
+
+function orderRemoveProduct(idx) {
+    orderSelectedProducts = orderSelectedProducts.filter(function(p) { return p.itemIndex !== idx; });
+    orderRenderFilteredProducts();
+    orderRenderSelectedProducts();
+}
+
+function orderUpdateWidth(idx, val) {
+    let p = orderSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) p.width = parseFloat(val) || 0;
+}
+
+function orderUpdateHeight(idx, val) {
+    let p = orderSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) p.height = parseFloat(val) || 0;
+}
+
+function orderUpdateQuantity(idx, val) {
+    let p = orderSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) {
+        p.quantity = parseInt(val) || 1;
+        p.subtotal = p.price * p.quantity;
+        orderRenderSelectedProducts();
+    }
+}
+
+function orderUpdatePrice(idx, val) {
+    let p = orderSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) {
+        p.price = parseFloat(val) || 0;
+        p.subtotal = p.price * p.quantity;
+        orderRenderSelectedProducts();
+    }
+}
+
+function orderUpdateRemark(idx, val) {
+    let p = orderSelectedProducts.find(function(x) { return x.itemIndex === idx; });
+    if (p) p.remark = val;
+}
+
+function submitOrder() {
+    if (orderSelectedProducts.length === 0) {
+        showToast('请至少选择一个产品', 'warning');
+        return;
+    }
+    
+    let shopId = document.getElementById('orderShopId').value;
+    
+    let data = {
+        shop_id: shopId,
+        items: orderSelectedProducts,
+        express_method: $('input[name="orderExpressMethod"]:checked').val() || '',
+        express_fee_type: $('input[name="orderExpressFeeType"]:checked').val() || '',
+        express_shop_address: document.getElementById('orderExpressShopAddress').value,
+        express_shop_phone: document.getElementById('orderExpressShopPhone').value,
+        remark: document.getElementById('orderRemark').value
+    };
+    
+    let total = 0;
+    orderSelectedProducts.forEach(function(p) { total += p.subtotal; });
+    data.total_amount = total;
+    
+    $.ajax({
+        url: '/order/api/add',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                $('#orderModal').modal('hide');
+                showToast('下单成功！', 'success');
+                loadData(1);
+            } else {
+                showToast(res.msg, 'danger');
+            }
+        }
+    });
+}
+
+
+// ==================== 历史订单弹窗函数 ====================
+function showShopOrders(shopId, shopName) {
+    // 获取完整店铺信息（包含经营模式和备注）
+    fetch('/shop/api/get/' + shopId)
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                const shop = data.data;
+                let shopText = '[' + shop.id + ']';
+                if (shop.business_model) {
+                    shopText += '[' + shop.business_model + ']';
+                }
+                shopText += ' ' + shop.shop_name;
+                if (shop.remark) {
+                    shopText += '（' + shop.remark + '）';
+                }
+                document.getElementById('shopOrdersShopName').textContent = shopText;
+                
+                // 根据经营模式设置颜色
+                const shopNameEl = document.getElementById('shopOrdersShopName');
+                if (shop.business_model && businessModelColors[shop.business_model]) {
+                    const colorClass = businessModelColors[shop.business_model];
+                    shopNameEl.style.color = getColorText(colorClass);
+                }
+            }
+        });
+    
+    $('#shopOrdersModal').modal('show');
+    loadShopOrders(shopId);
+}
+
+// 历史订单缓存
+let shopOrdersCache = {};
+const ORDERS_CACHE_TIME = 5 * 60 * 1000; // 缓存5分钟
+
+function loadShopOrders(shopId, page = 1) {
+    const limit = 10; // 每页10条
+    const tbody = document.getElementById('shopOrdersTableBody');
+    tbody.innerHTML = '<tr><td colspan="13">' + getLoadingSpinner() + '</td></tr>';
+    
+    // 检查缓存
+    const cacheKey = shopId;
+    const cachedData = shopOrdersCache[cacheKey];
+    const now = Date.now();
+    
+    if (cachedData && (now - cachedData.timestamp < ORDERS_CACHE_TIME)) {
+        renderShopOrders(cachedData.data, shopId, page, cachedData.data.length);
+        return;
+    }
+    
+    $.get('/order/api/shop/orders/' + shopId, function(res) {
+        if (res.code === 0) {
+            // 缓存数据
+            shopOrdersCache[cacheKey] = {
+                data: res.data,
+                timestamp: now
+            };
+            renderShopOrders(res.data, shopId, page, res.data.length);
+        } else {
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4"><i class="bi bi-exclamation-triangle" style="font-size: 2rem; color: #dc3545;"></i><p class="mt-2">加载失败</p></td></tr>';
+        }
+    });
+}
+
+function renderShopOrders(orders, shopId, page, totalCount) {
+    const tbody = document.getElementById('shopOrdersTableBody');
+    const limit = 10;
+    const totalPages = Math.ceil(orders.length / limit);
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const pageOrders = orders.slice(start, end);
+    
+    if (pageOrders.length > 0) {
+        let html = '';
+        pageOrders.forEach(function(order) {
+            // 使用公共函数获取订单状态
+            const statusInfo = getOrderStatusInfo(order.status);
+            
+            // 格式化时间
+            const formatTime = function(time) {
+                return time ? time.substring(0, 16) : '-';
+            };
+            
+            html += '<tr style="cursor:pointer;" ondblclick="window.location.href=\'/order/detail/' + order.id + '?from_shop=' + shopId + '&from_shop_orders=1\'" title="双击查看详情">';
+            html += '<td>' + order.id + '</td>';
+            html += '<td>' + (order.express_shop_address || '-') + '</td>';
+            html += '<td>' + (order.express_shop_phone || '-') + '</td>';
+            html += '<td class="text-end"><strong>' + formatMoney(order.total_amount) + '</strong></td>';
+            html += '<td>' + (order.express_method || '-') + '</td>';
+            html += '<td>' + (order.express_fee_type || '-') + '</td>';
+            html += '<td><span class="badge ' + statusInfo.class + '">' + statusInfo.badge + '</span></td>';
+            html += '<td>' + formatTime(order.order_time) + '</td>';
+            html += '<td>' + formatTime(order.confirm_time) + '</td>';
+            html += '<td>' + formatTime(order.pay_time) + '</td>';
+            html += '<td>' + formatTime(order.make_time) + '</td>';
+            html += '<td>' + formatTime(order.pack_time) + '</td>';
+            html += '<td><a href="/order/detail/' + order.id + '?from_shop=' + shopId + '&from_shop_orders=1" class="btn btn-sm btn-outline-primary">查看</a></td>';
+            html += '</tr>';
+        });
+        
+        // 添加分页
+        html += '</tbody></table>';
+        if (totalPages > 1) {
+            html += '<nav><ul class="pagination justify-content-end mb-0 mt-2">';
+            html += '<li class="page-item ' + (page <= 1 ? 'disabled' : '') + '"><a class="page-link" href="javascript:loadShopOrders(' + shopId + ', ' + (page - 1) + ')">上一页</a></li>';
+            for (let i = 1; i <= totalPages; i++) {
+                html += '<li class="page-item ' + (i === page ? 'active' : '') + '"><a class="page-link" href="javascript:loadShopOrders(' + shopId + ', ' + i + ')">' + i + '</a></li>';
+            }
+            html += '<li class="page-item ' + (page >= totalPages ? 'disabled' : '') + '"><a class="page-link" href="javascript:loadShopOrders(' + shopId + ', ' + (page + 1) + ')">下一页</a></li>';
+            html += '</ul></nav>';
+        }
+        tbody.innerHTML = html;
+    } else {
+        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size: 2rem;"></i><p class="mt-2">暂无订单记录</p></td></tr>';
+    }
+}
+
 </script>
 {% endblock %}

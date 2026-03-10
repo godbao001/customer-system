@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}角色管理 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="bi bi-person-badge me-2"></i>角色管理</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg me-1"></i> 添加角色
+    </button>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>角色名称</th>
+                    <th>权限</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="5" class="text-center text-muted py-4">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal fade" id="roleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roleModalTitle">添加角色</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="roleId">
+                <div class="mb-3">
+                    <label class="form-label">角色名称</label>
+                    <input type="text" class="form-control" id="roleName" placeholder="请输入角色名称">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">权限配置</label>
+                    <div class="row" id="permissionsList">
+                        <!-- 权限复选框 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveRole()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let permissionsData = {};
+
+$(document).ready(function() {
+    loadPermissions();
+    loadData();
+});
+
+function loadPermissions() {
+    $.get('/api/permissions', function(res) {
+        if (res.code === 0) {
+            permissionsData = res.data;
+            renderPermissions([]);
+        }
+    });
+}
+
+function renderPermissions(selectedPermissions) {
+    const container = $('#permissionsList');
+    container.html('');
+    
+    const permGroups = {
+        '客户管理': ['shop_view', 'shop_add', 'shop_edit', 'shop_delete'],
+        '订单管理': ['order_view', 'order_edit', 'order_delete'],
+        '产品管理': ['product_view', 'product_edit'],
+        '系统管理': ['user_manage', 'role_manage']
+    };
+    
+    for (const [groupName, perms] of Object.entries(permGroups)) {
+        let html = `<div class="col-md-6 mb-3"><div class="card"><div class="card-header bg-light"><strong>${groupName}</strong></div><div class="card-body">`;
+        
+        perms.forEach(perm => {
+            const label = permissionsData[perm] || perm;
+            const checked = selectedPermissions.includes(perm) ? 'checked' : '';
+            html += `<div class="form-check"><input class="form-check-input perm-checkbox" type="checkbox" value="${perm}" id="perm_${perm}" ${checked}><label class="form-check-label" for="perm_${perm}">${label}</label></div>`;
+        });
+        
+        html += '</div></div></div>';
+        container.append(html);
+    }
+}
+
+function loadData() {
+    $.get('/api/roles', function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+        }
+    });
+}
+
+function renderTable(data) {
+    const tbody = $('#tableBody');
+    if (data.length === 0) {
+        tbody.html('<tr><td colspan="5" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    let html = '';
+    data.forEach(item => {
+        const perms = item.permissions || [];
+        const permLabels = perms.map(p => permissionsData[p] || p).join('、');
+        
+        html += `<tr>
+            <td>${item.id}</td>
+            <td><strong>${item.role_name}</strong></td>
+            <td><small class="text-muted">${permLabels || '无'}</small></td>
+            <td>${item.created_at || ''}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="editRole(${item.id}, '${item.role_name}', ${JSON.stringify(item.permissions).replace(/"/g, '&quot;')})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteRole(${item.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    tbody.html(html);
+}
+
+function showAddModal() {
+    $('#roleId').val('');
+    $('#roleName').val('');
+    $('#roleModalTitle').text('添加角色');
+    renderPermissions([]);
+    $('#roleModal').modal('show');
+}
+
+function editRole(id, name, permissions) {
+    $('#roleId').val(id);
+    $('#roleName').val(name);
+    $('#roleModalTitle').text('编辑角色');
+    renderPermissions(permissions || []);
+    $('#roleModal').modal('show');
+}
+
+function saveRole() {
+    const id = $('#roleId').val();
+    const roleName = $('#roleName').val().trim();
+    
+    if (!roleName) {
+        alert('请输入角色名称');
+        return;
+    }
+    
+    const permissions = [];
+    $('.perm-checkbox:checked').each(function() {
+        permissions.push($(this).val());
+    });
+    
+    const url = id ? `/api/roles/edit/${id}` : '/api/roles/add';
+    const data = {
+        role_name: roleName,
+        permissions: permissions
+    };
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+            if (res.code === 0) {
+                $('#roleModal').modal('hide');
+                loadData();
+                alert(id ? '修改成功' : '添加成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+
+function deleteRole(id) {
+    if (!confirm('确定要删除该角色吗？')) return;
+    
+    $.ajax({
+        url: `/api/roles/delete/${id}`,
+        type: 'POST',
+        success: function(res) {
+            if (res.code === 0) {
+                loadData();
+                alert('删除成功');
+            } else {
+                alert(res.msg);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

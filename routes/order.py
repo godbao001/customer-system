@@ -229,12 +229,17 @@ def api_update_status(id):
         if new_status not in allowed_transitions.get(order.status, []):
             return jsonify({'code': 1, 'msg': '不能将状态从 {} 改为 {}'.format(order.status, new_status)})
         
+        # 保存原来的状态
+        old_status = order.status
         order.status = new_status
         
         # 根据状态自动设置时间
         if new_status == 2:
             order.confirm_time = datetime.now()
         elif new_status == 3:
+            # 如果是从状态1（下单未确认）直接到状态3（付款未制作），确认时间和付款时间都设置
+            if old_status == 1:
+                order.confirm_time = datetime.now()
             order.pay_time = datetime.now()
         elif new_status == 4:
             order.make_time = datetime.now()
@@ -290,6 +295,26 @@ def api_delete(id):
         db.session.rollback()
         return jsonify({'code': 1, 'msg': f'删除失败: {str(e)}'})
 
+# 下单页面（新增订单）
+@order_bp.route('/add/<int:shop_id>')
+def add(shop_id):
+    shop = Shop.query.get(shop_id)
+    if not shop:
+        abort(404)
+    # 创建一个空的order对象用于模板
+    order = type('Order', (), {
+        'id': None,
+        'shop_id': shop_id,
+        'shop': shop,
+        'express_shop_address': shop.address or '',
+        'express_shop_phone': shop.phone or '',
+        'express_method': '',
+        'express_fee_type': '',
+        'remark': '',
+        'total_amount': 0
+    })()
+    return render_template('order/edit.html', order=order, is_new=True)
+
 # 订单编辑页面
 @order_bp.route('/edit/<int:id>')
 def edit(id):
@@ -297,7 +322,7 @@ def edit(id):
     if not order:
         abort(404)
     items = OrderItem.query.filter_by(order_id=id).all()
-    return render_template('order/edit.html', order=order, items=items)
+    return render_template('order/edit.html', order=order, is_new=False)
 
 # 订单详情
 @order_bp.route('/detail/<int:id>')
