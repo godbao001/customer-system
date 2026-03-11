@@ -24,6 +24,13 @@
         
         <form id="registerForm">
             <div class="mb-3">
+                <label class="form-label">姓名 <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                    <input type="text" class="form-control" id="name" placeholder="请输入姓名" required>
+                </div>
+            </div>
+            <div class="mb-3">
                 <label class="form-label">用户名</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-person"></i></span>
@@ -56,16 +63,100 @@
     
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
     <script>
+        // 验证中文姓名（2-10个汉字）
+        function validateName(name) {
+            return /^[\u4e00-\u9fa5]{2,10}$/.test(name);
+        }
+        
+        // 验证用户名（字母、数字、下划线，3-20字符，不能以数字开头）
+        function validateUsername(username) {
+            return /^[a-zA-Z_][a-zA-Z0-9_]{2,19}$/.test(username);
+        }
+        
+        function clearValidation(input) {
+            input.removeClass('is-invalid');
+            input.next('.invalid-feedback').remove();
+        }
+        
+        $('#name').on('input', function() {
+            clearValidation($(this));
+        });
+        
+        $('#name').on('blur', function() {
+            const name = $(this).val().trim();
+            if (name && !validateName(name)) {
+                $(this).next('.invalid-feedback').remove();
+                $(this).addClass('is-invalid');
+                $(this).after('<div class="invalid-feedback">姓名必须是2-10个中文汉字</div>');
+            } else {
+                clearValidation($(this));
+            }
+        });
+        
+        $('#username').on('input', function() {
+            clearValidation($(this));
+        });
+        
+        $('#username').on('blur', function() {
+            const username = $(this).val().trim();
+            if (username && !validateUsername(username)) {
+                $(this).next('.invalid-feedback').remove();
+                $(this).addClass('is-invalid');
+                $(this).after('<div class="invalid-feedback">用户名3-20位，字母/数字/下划线，不能以数字开头</div>');
+            } else {
+                clearValidation($(this));
+            }
+        });
+        
         $('#registerForm').on('submit', function(e) {
             e.preventDefault();
+            
+            const name = $('#name').val().trim();
+            const username = $('#username').val().trim();
+            const password = $('#password').val();
+            const confirmPassword = $('#confirmPassword').val();
+            
+            // 前端验证
+            if (!name) {
+                alert('请输入姓名');
+                return;
+            }
+            if (!validateName(name)) {
+                alert('姓名必须是2-10个中文汉字');
+                return;
+            }
+            
+            if (!username) {
+                alert('请输入用户名');
+                return;
+            }
+            if (!validateUsername(username)) {
+                alert('用户名3-20位，字母/数字/下划线，不能以数字开头');
+                return;
+            }
+            
+            if (!password) {
+                alert('请输入密码');
+                return;
+            }
+            if (password.length < 6) {
+                alert('密码至少6位');
+                return;
+            }
+            if (password !== confirmPassword) {
+                alert('两次密码输入不一致');
+                return;
+            }
+            
             $.ajax({
                 url: '/api/register',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({
-                    username: $('#username').val(),
-                    password: $('#password').val(),
-                    confirm_password: $('#confirmPassword').val()
+                    name: name,
+                    username: username,
+                    password: password,
+                    confirm_password: confirmPassword
                 }),
                 success: function(res) {
                     if (res.code === 0) {

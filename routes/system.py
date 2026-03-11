@@ -1,18 +1,18 @@
 # 系统管理路由
-from flask import Blueprint, render_template, request, jsonify, send_from_directory
+from permissions import check_permission, ALL_PERMISSIONS
+
+from flask import Blueprint, render_template, request, jsonify, send_from_directory, session, redirect
 from models import db, SystemConfig, FieldConfig
 import os
 import uuid
+import json
 
 system_bp = Blueprint('system', __name__, url_prefix='/system')
-
-# 确保上传目录存在
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ==================== 首页 ====================
 
 @system_bp.route('/')
+@check_permission('system_basic')
 def index():
     return render_template('system/basic.html')
 
@@ -20,11 +20,13 @@ def index():
 # ==================== 基础管理 ====================
 
 @system_bp.route('/basic')
+@check_permission('system_basic')
 def basic():
     return render_template('system/basic.html')
 
 
 @system_bp.route('/api/basic/get')
+@check_permission('system_basic')
 def api_basic_get():
     """获取系统基础配置"""
     configs = SystemConfig.query.all()
@@ -35,6 +37,7 @@ def api_basic_get():
 
 
 @system_bp.route('/api/basic/save', methods=['POST'])
+@check_permission('system_basic')
 def api_basic_save():
     """保存系统基础配置"""
     data = request.json
@@ -60,6 +63,7 @@ def api_basic_save():
 
 
 @system_bp.route('/api/upload', methods=['POST'])
+@check_permission('system_basic')
 def api_upload():
     """上传文件"""
     if 'file' not in request.files:
@@ -95,11 +99,13 @@ def api_upload():
 # ==================== 字段管理 ====================
 
 @system_bp.route('/field')
+@check_permission('system_field')
 def field():
     return render_template('system/field.html')
 
 
 @system_bp.route('/api/field/list')
+@check_permission('system_field')
 def api_field_list():
     """获取字段配置列表"""
     field_type = request.args.get('field_type', '')
@@ -113,6 +119,7 @@ def api_field_list():
 
 
 @system_bp.route('/api/field/save', methods=['POST'])
+@check_permission('system_field')
 def api_field_save():
     """保存字段配置"""
     data = request.json
@@ -159,6 +166,7 @@ def api_field_save():
 
 
 @system_bp.route('/api/field/delete/<int:id>', methods=['POST'])
+@check_permission('user_manage')
 def api_field_delete(id):
     """删除字段配置"""
     field = FieldConfig.query.get(id)
@@ -175,6 +183,7 @@ def api_field_delete(id):
 
 
 @system_bp.route('/api/field/options')
+@check_permission('system_field')
 def api_field_options():
     """获取字段选项（用于下拉选择）"""
     field_type = request.args.get('field_type')
@@ -186,11 +195,13 @@ def api_field_options():
 # ==================== 日志管理 ====================
 
 @system_bp.route('/log')
+@check_permission('system_log')
 def log():
     return render_template('system/log.html')
 
 
 @system_bp.route('/api/log/list')
+@check_permission('system_log')
 def api_log_list():
     """获取日志列表"""
     # TODO: 后续完善日志查询逻辑

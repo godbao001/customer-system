@@ -1,11 +1,14 @@
 # 订单管理路由
-from flask import Blueprint, render_template, request, jsonify, abort
+from permissions import check_permission, ALL_PERMISSIONS
+
+from flask import Blueprint, render_template, request, jsonify, abort, session, redirect
 from models import db, Order, OrderItem, Shop
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 import random
 import string
+import json
 
 order_bp = Blueprint('order', __name__, url_prefix='/order')
 
@@ -18,16 +21,19 @@ def generate_order_no():
 
 # 订单列表页面
 @order_bp.route('/')
+@check_permission('order_view')
 def list():
     return render_template('order/list.html')
 
 # 订单状态筛选页面
 @order_bp.route('/status/<int:status>')
+@check_permission('order_view')
 def list_by_status(status):
     return render_template('order/list.html', status=status)
 
 # 获取订单列表API
 @order_bp.route('/api/list')
+@check_permission('order_view')
 def api_list():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 12, type=int)
@@ -59,6 +65,7 @@ def api_list():
 
 # 获取所有店铺（下拉用）
 @order_bp.route('/api/shops')
+@check_permission('order_view')
 def api_shops():
     shops = Shop.query.filter_by(status=1).order_by(Shop.id.desc()).all()
     return jsonify({
@@ -68,6 +75,7 @@ def api_shops():
 
 # 获取店铺的产品（下单用）
 @order_bp.route('/api/shop/products/<int:shop_id>')
+@check_permission('order_view')
 def api_shop_products(shop_id):
     # 这里应该查店铺的产品，暂时返回空列表
     return jsonify({
@@ -77,6 +85,7 @@ def api_shop_products(shop_id):
 
 # 获取店铺的订单
 @order_bp.route('/api/shop/orders/<int:shop_id>')
+@check_permission('order_view')
 def api_shop_orders(shop_id):
     orders = Order.query.filter_by(shop_id=shop_id).order_by(Order.id.desc()).all()
     return jsonify({
@@ -86,6 +95,7 @@ def api_shop_orders(shop_id):
 
 # 获取订单明细
 @order_bp.route('/api/items/<int:order_id>')
+@check_permission('order_view')
 def api_items(order_id):
     items = OrderItem.query.filter_by(order_id=order_id).all()
     return jsonify({
@@ -95,6 +105,7 @@ def api_items(order_id):
 
 # 更新订单（完整更新）
 @order_bp.route('/api/update/<int:id>', methods=['POST'])
+@check_permission('order_edit')
 def api_update(id):
     data = request.json
     order = Order.query.get(id)
@@ -139,6 +150,7 @@ def api_update(id):
 
 # 创建订单
 @order_bp.route('/api/add', methods=['POST'])
+@check_permission('order_edit')
 def api_add():
     data = request.json
     
@@ -205,6 +217,7 @@ def api_add():
 
 # 更新订单状态
 @order_bp.route('/api/update_status/<int:id>', methods=['POST'])
+@check_permission('order_edit')
 def api_update_status(id):
     data = request.json
     order = Order.query.get(id)
@@ -258,6 +271,7 @@ def api_update_status(id):
 
 # 编辑订单
 @order_bp.route('/api/edit/<int:id>', methods=['POST'])
+@check_permission('order_edit')
 def api_edit(id):
     data = request.json
     order = Order.query.get(id)
@@ -280,6 +294,7 @@ def api_edit(id):
 
 # 删除订单
 @order_bp.route('/api/delete/<int:id>', methods=['POST'])
+@check_permission('order_delete')
 def api_delete(id):
     order = Order.query.get(id)
     if not order:
@@ -297,6 +312,7 @@ def api_delete(id):
 
 # 下单页面（新增订单）
 @order_bp.route('/add/<int:shop_id>')
+@check_permission('order_edit')
 def add(shop_id):
     shop = Shop.query.get(shop_id)
     if not shop:
@@ -317,6 +333,7 @@ def add(shop_id):
 
 # 订单编辑页面
 @order_bp.route('/edit/<int:id>')
+@check_permission('order_edit')
 def edit(id):
     order = Order.query.options(joinedload(Order.shop)).get(id)
     if not order:
@@ -326,6 +343,7 @@ def edit(id):
 
 # 订单详情
 @order_bp.route('/detail/<int:id>')
+@check_permission('order_view')
 def detail(id):
     from sqlalchemy.orm import joinedload
     order = Order.query.options(joinedload(Order.shop)).get(id)

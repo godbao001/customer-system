@@ -386,22 +386,44 @@ class User(db.Model):
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(50), unique=True, nullable=False, comment='用户名')
+    name = db.Column(db.String(50), nullable=False, comment='姓名')
     password_hash = db.Column(db.String(255), nullable=False, comment='密码哈希')
-    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=True, comment='角色ID')
+    avatar = db.Column(db.String(255), nullable=True, comment='头像URL')
+    role_ids = db.Column(db.String(255), default='', comment='角色ID列表，逗号分隔')
     status = db.Column(db.Integer, default=1, comment='状态: 1=启用, 0=禁用')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     
-    role = db.relationship('Role', backref='users')
-    
     def to_dict(self):
+        # 计算所有角色的权限合并
+        permissions = []
+        if self.role_ids:
+            role_id_list = [int(rid) for rid in self.role_ids.split(',') if rid]
+            roles = Role.query.filter(Role.id.in_(role_id_list), Role.status == 1).all()
+            import json
+            for r in roles:
+                perms = json.loads(r.permissions) if r.permissions else []
+                for p in perms:
+                    if p not in permissions:
+                        permissions.append(p)
+        
         return {
             'id': self.id,
             'username': self.username,
-            'role_id': self.role_id,
-            'role_name': self.role.role_name if self.role else '',
+            'name': self.name,
+            'avatar': self.avatar,
+            'role_ids': self.role_ids,
+            'role_names': self.get_role_names(),
             'status': self.status,
+            'permissions': permissions,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }
+    
+    def get_role_names(self):
+        if not self.role_ids:
+            return ''
+        role_id_list = [int(rid) for rid in self.role_ids.split(',') if rid]
+        roles = Role.query.filter(Role.id.in_(role_id_list), Role.status == 1).all()
+        return '、'.join([r.role_name for r in roles])
 
 
 class Role(db.Model):
@@ -410,6 +432,7 @@ class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     role_name = db.Column(db.String(50), nullable=False, comment='角色名称')
     permissions = db.Column(db.Text, default='[]', comment='权限JSON')
+    is_super_admin = db.Column(db.Boolean, default=False, comment='是否超级管理员')
     status = db.Column(db.Integer, default=1, comment='状态: 1=启用, 0=禁用')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     
@@ -419,6 +442,7 @@ class Role(db.Model):
             'id': self.id,
             'role_name': self.role_name,
             'permissions': json.loads(self.permissions) if self.permissions else [],
+            'is_super_admin': getattr(self, 'is_super_admin', False),
             'status': self.status,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }

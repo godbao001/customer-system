@@ -83,9 +83,11 @@ function renderPermissions(selectedPermissions) {
     container.html('');
     
     const permGroups = {
+        '基础权限': ['login'],
         '客户管理': ['shop_view', 'shop_add', 'shop_edit', 'shop_delete'],
         '订单管理': ['order_view', 'order_edit', 'order_delete'],
         '产品管理': ['product_view', 'product_edit'],
+        '系统设置': ['system_basic', 'system_field', 'system_log'],
         '系统管理': ['user_manage', 'role_manage']
     };
     
@@ -123,19 +125,22 @@ function renderTable(data) {
         const perms = item.permissions || [];
         const permLabels = perms.map(p => permissionsData[p] || p).join('、');
         
+        // 超级管理员不显示编辑和删除按钮
+        const isSuperAdmin = item.is_super_admin || item.role_name === '超级管理员';
+        const actions = isSuperAdmin ? '<span class="text-muted"><i class="bi bi-lock-fill"></i> 不可操作</span>' : 
+            `<button class="btn btn-sm btn-outline-primary me-1" onclick="editRole(${item.id}, '${item.role_name}', ${JSON.stringify(item.permissions).replace(/"/g, '&quot;')})">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteRole(${item.id})">
+                <i class="bi bi-trash"></i>
+            </button>`;
+        
         html += `<tr>
             <td>${item.id}</td>
             <td><strong>${item.role_name}</strong></td>
             <td><small class="text-muted">${permLabels || '无'}</small></td>
             <td>${item.created_at || ''}</td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary me-1" onclick="editRole(${item.id}, '${item.role_name}', ${JSON.stringify(item.permissions).replace(/"/g, '&quot;')})">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteRole(${item.id})">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
+            <td>${actions}</td>
         </tr>`;
     });
     tbody.html(html);

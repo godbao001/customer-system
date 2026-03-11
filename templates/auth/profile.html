@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}个人中心 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h4><i class="bi bi-person-circle me-2"></i>个人中心</h4>
+</div>
+
+<div class="table-card">
+    <div class="row">
+        <div class="col-md-4 text-center">
+            <div class="card">
+                <div class="card-body">
+                    <div class="avatar-container mb-3">
+                        <img id="avatarPreview" src="{{ url_for('static', filename='images/default-avatar.png') }}" 
+                             alt="头像" class="rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
+                    </div>
+                    <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                    <button class="btn btn-outline-primary" onclick="document.getElementById('avatarInput').click()">
+                        <i class="bi bi-camera me-1"></i>更换头像
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-key me-2"></i>修改密码</h5>
+                </div>
+                <div class="card-body">
+                    <form id="passwordForm">
+                        <div class="mb-3">
+                            <label class="form-label">当前密码</label>
+                            <input type="password" class="form-control" id="oldPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">新密码</label>
+                            <input type="password" class="form-control" id="newPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">确认新密码</label>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>确认修改
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>账号信息</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>姓名：</strong><span id="userName"></span></p>
+                    <p><strong>用户名：</strong><span id="userUsername"></span></p>
+                    <p><strong>角色：</strong><span id="userRoles"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 加载用户信息
+    $.get('/api/auth_status', function(res) {
+        if (res.code === 0 && res.logged_in) {
+            $('#userName').text(res.name || '-');
+            $('#userUsername').text(res.username || '-');
+            $('#userRoles').text(res.role_names || '-');
+            
+            // 显示头像
+            if (res.avatar) {
+                $('#avatarPreview').attr('src', res.avatar);
+            }
+        }
+    });
+    
+    // 头像预览和上传
+    $('#avatarInput').on('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        
+        // 预览
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            $('#avatarPreview').attr('src', e.target.result);
+        };
+        reader.readAsDataURL(file);
+        
+        // 上传
+        var formData = new FormData();
+        formData.append('avatar', file);
+        
+        $.ajax({
+            url: '/api/profile/avatar',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(res) {
+                if (res.code === 0) {
+                    // 更新顶部头像
+                    $('#topAvatar').attr('src', res.data.avatar);
+                    $('#sidebarAvatar').attr('src', res.data.avatar);
+                    alert('头像上传成功');
+                } else {
+                    alert(res.msg);
+                }
+            }
+        });
+    });
+    
+    // 修改密码
+    $('#passwordForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        var oldPassword = $('#oldPassword').val();
+        var newPassword = $('#newPassword').val();
+        var confirmPassword = $('#confirmPassword').val();
+        
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            alert('请填写完整');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            alert('新密码至少6位');
+            return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            alert('两次密码输入不一致');
+            return;
+        }
+        
+        $.ajax({
+            url: '/api/profile/change_password',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                old_password: oldPassword,
+                new_password: newPassword
+            }),
+            success: function(res) {
+                if (res.code === 0) {
+                    alert('密码修改成功，请重新登录');
+                    location.href = '/logout';
+                } else {
+                    alert(res.msg);
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

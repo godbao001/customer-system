@@ -19,7 +19,7 @@
 {% block content %}
 <div class="content-header d-flex justify-content-between align-items-center">
     <h4 class="mb-0"><i class="bi bi-shop me-2"></i>客户列表</h4>
-    <button class="btn btn-primary" onclick="showAddModal()">
+    <button class="btn btn-primary" id="addCustomerBtn" onclick="showAddModal()">
         <i class="bi bi-plus-lg me-1"></i> 添加客户
     </button>
 </div>
@@ -323,6 +323,37 @@
 
 {% block extra_js %}
 <script>
+// 页面加载完成后隐藏没有权限的按钮，并加载数据
+document.addEventListener('DOMContentLoaded', function() {
+    // 等待权限加载完成（最多等待2秒）
+    var checkCount = 0;
+    var checkPermissions = function() {
+        checkCount++;
+        var perms = window.userPermissions || [];
+        
+        // 隐藏添加按钮（需要shop_add权限）
+        // 如果权限为空（兼容超级管理员等情况），默认显示添加按钮
+        if (perms.length > 0 && !perms.includes('shop_add')) {
+            var addBtn = document.getElementById('addCustomerBtn');
+            if (addBtn) addBtn.style.display = 'none';
+        }
+        
+        // 刷新表格数据
+        if (typeof loadData === 'function') {
+            loadData(1);
+        }
+    };
+    checkPermissions();
+});
+
+// 监听权限加载完成事件
+document.addEventListener('permissionsLoaded', function() {
+    // 权限加载完成后刷新表格
+    if (typeof loadData === 'function') {
+        loadData(1);
+    }
+});
+
 // ==================== Toast 提示函数 ====================
 function showToast(message, type = 'info') {
     const toastContainer = document.getElementById('toastContainer');
@@ -788,22 +819,32 @@ function renderTable(data) {
             html += `<td>${item.remark || ''}</td>`;
         }
         if (columnSettings.action) {
-            html += `
-                <td>
-                    <button class="btn btn-sm btn-outline-info me-1" onclick="showShopOrders(${item.id}, '${item.shop_name}')" title="历史订单">
-                        <i class="bi bi-clock-history"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-primary me-1" onclick="showEditModal(${item.id})">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStatus(${item.id}, ${item.status})">
-                        <i class="bi bi-${item.status === 1 ? 'pause' : 'play'}-fill"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-success" onclick="showOrderModal(${item.id}, '${item.shop_name}')">
-                        <i class="bi bi-cart-plus"></i>
-                    </button>
-                </td>
-            `;
+            // 获取权限，如果没有则默认显示所有按钮
+            var perms = window.userPermissions || [];
+            var hasAnyPerm = perms.length > 0;
+            
+            // 如果没有任何权限信息，默认显示所有按钮（兼容超级管理员等情况）
+            var showAll = !hasAnyPerm || perms.includes('shop_view') || perms.includes('shop_edit') || perms.includes('shop_add');
+            
+            var buttons = '';
+            // 历史订单按钮
+            if (showAll || perms.includes('shop_view')) {
+                buttons += '<button class="btn btn-sm btn-outline-info me-1" onclick="showShopOrders(' + item.id + ', \'' + item.shop_name + '\')" title="历史订单"><i class="bi bi-clock-history"></i></button>';
+            }
+            // 编辑按钮
+            if (showAll || perms.includes('shop_edit')) {
+                buttons += '<button class="btn btn-sm btn-outline-primary me-1" onclick="showEditModal(' + item.id + ')"><i class="bi bi-pencil"></i></button>';
+            }
+            // 停用/启用按钮
+            if (showAll || perms.includes('shop_edit')) {
+                buttons += '<button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStatus(' + item.id + ', ' + item.status + ')"><i class="bi bi-' + (item.status === 1 ? 'pause' : 'play') + '-fill"></i></button>';
+            }
+            // 下单按钮
+            if (showAll || perms.includes('order_edit')) {
+                buttons += '<button class="btn btn-sm btn-outline-success" onclick="showOrderModal(' + item.id + ', \'' + item.shop_name + '\')"><i class="bi bi-cart-plus"></i></button>';
+            }
+            
+            html += '<td>' + buttons + '</td>';
         }
         
         tr.innerHTML = html;

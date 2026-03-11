@@ -1,24 +1,29 @@
 # 店铺管理路由
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+from permissions import check_permission, ALL_PERMISSIONS
 from models import db, Shop, Order, get_pinyin, get_pinyin_initial
 from sqlalchemy import or_, func
 from utils.address_parser import parse_address
 from utils.kuaibao_parser import clear_address
+import json
 
 shop_bp = Blueprint('shop', __name__, url_prefix='/shop')
 
 # 店铺列表（正常状态）
 @shop_bp.route('/')
+@check_permission('shop_view')
 def list():
     return render_template('shop/list.html')
 
 # 店铺停用列表
 @shop_bp.route('/disabled')
+@check_permission('shop_view')
 def disabled():
     return render_template('shop/disabled.html')
 
 # 获取店铺列表API
 @shop_bp.route('/api/list')
+@check_permission('shop_view')
 def api_list():
     status = request.args.get('status', 1, type=int)
     page = request.args.get('page', 1, type=int)
@@ -88,6 +93,7 @@ def api_list():
 
 # 添加店铺
 @shop_bp.route('/api/add', methods=['POST'])
+@check_permission('shop_add')
 def api_add():
     data = request.json
     
@@ -154,6 +160,7 @@ def api_add():
 
 # 获取单个店铺详情
 @shop_bp.route('/api/get/<int:id>')
+@check_permission('shop_view')
 def api_get(id):
     shop = Shop.query.get(id)
     if not shop:
@@ -162,6 +169,7 @@ def api_get(id):
 
 # 编辑店铺
 @shop_bp.route('/api/edit/<int:id>', methods=['POST'])
+@check_permission('shop_edit')
 def api_edit(id):
     data = request.json
     shop = Shop.query.get(id)
@@ -230,6 +238,7 @@ def api_edit(id):
 
 # 停用/启用店铺
 @shop_bp.route('/api/toggle_status/<int:id>', methods=['POST'])
+@check_permission('shop_edit')
 def api_toggle_status(id):
     shop = Shop.query.get(id)
     if not shop:
@@ -245,6 +254,7 @@ def api_toggle_status(id):
 
 # 删除店铺
 @shop_bp.route('/api/delete/<int:id>', methods=['POST'])
+@check_permission('shop_delete')
 def api_delete(id):
     shop = Shop.query.get(id)
     if not shop:
@@ -260,6 +270,7 @@ def api_delete(id):
 
 # 检查店铺名称API
 @shop_bp.route('/api/check_name', methods=['POST'])
+@check_permission('shop_view')
 def api_check_name():
     """检查店铺名称是否重复"""
     data = request.json
@@ -283,6 +294,7 @@ def api_check_name():
 
 # 地址解析API
 @shop_bp.route('/api/parse_address', methods=['POST'])
+@check_permission('shop_add')
 def api_parse_address():
     """智能解析地址（使用快宝API）"""
     data = request.json
