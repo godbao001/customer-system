@@ -8,6 +8,7 @@ from routes.product import product_bp
 from routes.order import order_bp
 from routes.system import system_bp
 from routes.auth import auth_bp
+from routes.stats import stats_bp
 
 def create_app():
     app = Flask(__name__)
@@ -23,6 +24,7 @@ def create_app():
     app.register_blueprint(order_bp)
     app.register_blueprint(system_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(stats_bp)
     
     # 创建数据库表
     with app.app_context():

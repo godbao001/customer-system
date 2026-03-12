@@ -223,6 +223,8 @@ class Order(db.Model):
     status = db.Column(db.Integer, default=1, comment='订单状态: 1=下单未确认, 2=确认未付款, 3=付款未制作, 4=制作为打包, 5=打包未发货, 6=发货未到货, 7=已到货')
     remark = db.Column(db.Text, comment='备注')
     free_shipping = db.Column(db.Integer, default=0, comment='是否包邮: 1=是, 0=否')
+    is_deleted = db.Column(db.Integer, default=0, comment='是否删除: 0=未删除, 1=已删除')
+    deleted_at = db.Column(db.DateTime, nullable=True, comment='删除时间')
     # 状态时间
     order_time = db.Column(db.DateTime, default=datetime.now, comment='下单时间')
     confirm_time = db.Column(db.DateTime, nullable=True, comment='确认时间')
@@ -424,6 +426,25 @@ class User(db.Model):
         role_id_list = [int(rid) for rid in self.role_ids.split(',') if rid]
         roles = Role.query.filter(Role.id.in_(role_id_list), Role.status == 1).all()
         return '、'.join([r.role_name for r in roles])
+    
+    def get_permissions(self):
+        """获取用户的所有权限"""
+        if not self.role_ids:
+            return []
+        import json
+        role_id_list = [int(rid) for rid in self.role_ids.split(',') if rid]
+        roles = Role.query.filter(Role.id.in_(role_id_list), Role.status == 1).all()
+        
+        permissions = set()
+        for role in roles:
+            role_perms = json.loads(role.permissions) if role.permissions else []
+            permissions.update(role_perms)
+            # 如果是超级管理员角色，添加所有权限
+            if getattr(role, 'is_super_admin', False):
+                from permissions import ALL_PERMISSIONS
+                permissions.update(ALL_PERMISSIONS.keys())
+        
+        return list(permissions)
 
 
 class Role(db.Model):
@@ -444,5 +465,48 @@ class Role(db.Model):
             'permissions': json.loads(self.permissions) if self.permissions else [],
             'is_super_admin': getattr(self, 'is_super_admin', False),
             'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+
+# ==================== 操作日志 ====================
+class OperationLog(db.Model):
+    __tablename__ = 'operation_logs'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, comment='操作人ID')
+    username = db.Column(db.String(50), comment='操作人用户名')
+    user_name = db.Column(db.String(50), comment='操作人姓名')
+    category = db.Column(db.String(50), nullable=False, comment='操作分类: login/ logout/ shop/ product/ order/ user/ role/ system')
+    action = db.Column(db.String(100), nullable=False, comment='操作动作')
+    detail = db.Column(db.Text, comment='操作详情')
+    ip = db.Column(db.String(50), comment='IP地址')
+    result = db.Column(db.String(20), default='success', comment='操作结果: success/ fail')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='操作时间')
+    
+    # 分类显示名称
+    CATEGORY_NAMES = {
+        'login': '登录',
+        'logout': '退出登录',
+        'shop': '店铺管理',
+        'product': '产品管理',
+        'order': '订单管理',
+        'user': '用户管理',
+        'role': '角色管理',
+        'system': '系统设置'
+    }
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.username,
+            'user_name': self.user_name,
+            'category': self.category,
+            'category_name': self.CATEGORY_NAMES.get(self.category, self.category),
+            'action': self.action,
+            'detail': self.detail or '',
+            'ip': self.ip or '',
+            'result': self.result,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }

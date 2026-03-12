@@ -2,28 +2,24 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Role
+from utils.log import log_login, log_logout, add_log
 import json
 
 auth_bp = Blueprint('auth', __name__, url_prefix='')
 
-# 权限常量
-PERMISSIONS = {
-    'login': '系统登录',
-    'shop_view': '查看客户',
-    'shop_add': '添加客户',
-    'shop_edit': '编辑客户',
-    'shop_delete': '删除客户',
-    'order_view': '查看订单',
-    'order_edit': '处理订单',
-    'order_delete': '删除订单',
-    'product_view': '查看产品',
-    'product_edit': '编辑产品',
-    'system_basic': '系统设置',
-    'system_field': '字段管理',
-    'system_log': '日志管理',
-    'user_manage': '用户管理',
-    'role_manage': '角色管理'
-}
+# 辅助函数：判断用户是否是超级管理员
+def is_super_admin_user(user):
+    if not user or not user.role_ids:
+        return False
+    role_ids = [int(rid) for rid in user.role_ids.split(',') if rid]
+    if not role_ids:
+        return False
+    roles = Role.query.filter(Role.id.in_(role_ids), Role.status == 1).all()
+    return any(getattr(r, 'is_super_admin', False) for r in roles)
+
+# 权限常量 - 从 permissions.py 导入，确保包含所有权限
+from permissions import ALL_PERMISSIONS
+PERMISSIONS = ALL_PERMISSIONS
 
 # 检查权限装饰器
 def permission_required(*permissions):
@@ -82,9 +78,11 @@ def api_login():
     user = User.query.filter_by(username=username).first()
     
     if not user or not check_password_hash(user.password_hash, password):
+        log_login(username, False, '密码错误')
         return jsonify({'code': 1, 'msg': '用户名或密码错误'})
     
     if user.status == 0:
+        log_login(username, False, '账号被禁用')
         return jsonify({'code': 1, 'msg': '账号已被禁用'})
     
     # 处理多角色权限合并
@@ -120,6 +118,9 @@ def api_login():
     session['name'] = user.name
     session['role_ids'] = user.role_ids
     session['permissions'] = permissions
+    
+    # 记录登录日志
+    log_login(username, True, f'用户: {user.name}')
     
     return jsonify({'code': 0, 'msg': '登录成功'})
 
@@ -168,7 +169,20 @@ def api_register():
     # 检查是否是第一个用户（第一个用户成为超级管理员）
     user_count = User.query.count()
     
-    if user_count == 0:
+    # 检查是否已有超级管理员
+    def is_super_admin_user(user):
+        if not user.role_ids:
+            return False
+        role_ids = [int(rid) for rid in user.role_ids.split(',') if rid]
+        if not role_ids:
+            return False
+        roles = Role.query.filter(Role.id.in_(role_ids), Role.status == 1).all()
+        return any(getattr(r, 'is_super_admin', False) for r in roles)
+    
+    existing_super_admin = User.query.filter(User.status == 1).all()
+    has_super_admin = any(is_super_admin_user(u) for u in existing_super_admin)
+    
+    if user_count == 0 and not has_super_admin:
         # 创建超级管理员角色
         import json
         super_admin_role = Role(
@@ -209,6 +223,11 @@ def api_register():
 # 登出
 @auth_bp.route('/logout')
 def logout():
+    username = session.get('username', '')
+    user_name = session.get('name', '')
+    # 先记录日志
+    from utils.log import add_log
+    add_log('logout', '退出登录', f'用户: {user_name}({username})')
     session.clear()
     return redirect('/login')
 
@@ -226,6 +245,9 @@ def auth_status():
     # 获取角色名称
     role_names = user.get_role_names() if hasattr(user, 'get_role_names') else ''
     
+    # 重新计算权限（从数据库获取最新的角色权限）
+    permissions = user.get_permissions() if hasattr(user, 'get_permissions') else []
+    
     return jsonify({
         'code': 0,
         'logged_in': True,
@@ -234,7 +256,7 @@ def auth_status():
         'avatar': user.avatar,
         'role_ids': session.get('role_ids'),
         'role_names': role_names,
-        'permissions': session.get('permissions', [])
+        'permissions': permissions
     })
 
 # 获取权限列表
@@ -326,7 +348,19 @@ def roles_page():
 @permission_required('role_manage')
 def api_roles():
     roles = Role.query.filter_by(status=1).all()
-    return jsonify({'code': 0, 'data': [r.to_dict() for r in roles]})
+    roles_data = []
+    has_super_admin = False
+    
+    for r in roles:
+        r_dict = r.to_dict()
+        # 检查是否已有超级管理员
+        if getattr(r, 'is_super_admin', False):
+            all_users = User.query.filter(User.status == 1).all()
+            has_super_admin = any(is_super_admin_user(u) for u in all_users)
+            r_dict['disabled'] = has_super_admin  # 标记是否禁用
+        roles_data.append(r_dict)
+    
+    return jsonify({'code': 0, 'data': roles_data, 'has_super_admin': has_super_admin})
 
 @auth_bp.route('/api/roles/add', methods=['POST'])
 @permission_required('role_manage')
@@ -348,6 +382,9 @@ def api_roles_add():
     )
     db.session.add(role)
     db.session.commit()
+    
+    # 记录日志
+    add_log('role', '添加角色', f'角色名称: {role_name}', 'success')
     
     return jsonify({'code': 0, 'msg': '添加成功'})
 
@@ -375,6 +412,9 @@ def api_roles_edit(id):
     role.permissions = json.dumps(permissions)
     db.session.commit()
     
+    # 记录日志
+    add_log('role', '编辑角色', f'角色名称: {role_name}', 'success')
+    
     return jsonify({'code': 0, 'msg': '修改成功'})
 
 @auth_bp.route('/api/roles/delete/<int:id>', methods=['POST'])
@@ -399,6 +439,9 @@ def api_roles_delete(id):
     role.status = 0
     db.session.commit()
     
+    # 记录日志
+    add_log('role', '删除角色', f'角色名称: {role.role_name}', 'success')
+    
     return jsonify({'code': 0, 'msg': '删除成功'})
 
 # ==================== 用户管理 ====================
@@ -418,6 +461,7 @@ def api_users():
     users_data = []
     for u in users:
         u_dict = u.to_dict()
+        u_dict['is_super_admin'] = is_super_admin_user(u)
         users_data.append(u_dict)
     
     return jsonify({'code': 0, 'data': users_data})
@@ -440,6 +484,13 @@ def api_users_add():
     if User.query.filter_by(username=username).first():
         return jsonify({'code': 1, 'msg': '用户名已存在'})
     
+    # 检查是否已有超级管理员
+    all_users = User.query.filter(User.status == 1).all()
+    if any(is_super_admin_user(u) for u in all_users):
+        # 如果已有超级管理员，检查是否要分配超级管理员角色
+        if 1 in role_ids:  # 1是超级管理员角色的ID
+            return jsonify({'code': 1, 'msg': '系统已有超级管理员，不能重复创建'})
+    
     user = User(
         name=name,
         username=username,
@@ -449,6 +500,9 @@ def api_users_add():
     )
     db.session.add(user)
     db.session.commit()
+    
+    # 记录日志
+    add_log('user', '添加用户', f'用户名: {username}, 姓名: {name}', 'success')
     
     return jsonify({'code': 0, 'msg': '添加成功'})
 
@@ -461,6 +515,10 @@ def api_users_edit(id):
     if not user:
         return jsonify({'code': 1, 'msg': '用户不存在'})
     
+    # 超级管理员不能被停用/启用或修改角色
+    if is_super_admin_user(user):
+        return jsonify({'code': 1, 'msg': '超级管理员不能被修改'})
+    
     # 启用/停用
     if 'status' in data:
         user.status = data['status']
@@ -470,6 +528,13 @@ def api_users_edit(id):
         user.role_ids = ','.join(map(str, data['role_ids'])) if data['role_ids'] else ''
     
     db.session.commit()
+    
+    # 记录日志
+    if 'status' in data:
+        action = '启用' if data['status'] == 1 else '停用'
+        add_log('user', f'{action}用户', f'用户名: {user.username}', 'success')
+    else:
+        add_log('user', '修改用户角色', f'用户名: {user.username}', 'success')
     
     return jsonify({'code': 0, 'msg': '修改成功'})
 
@@ -482,9 +547,16 @@ def api_users_reset_password(id):
     if not user:
         return jsonify({'code': 1, 'msg': '用户不存在'})
     
+    # 超级管理员不能被重置密码
+    if is_super_admin_user(user):
+        return jsonify({'code': 1, 'msg': '超级管理员不能重置密码'})
+    
     new_password = str(random.randint(10000000, 99999999))
     user.password_hash = generate_password_hash(new_password)
     db.session.commit()
+    
+    # 记录日志
+    add_log('user', '重置密码', f'用户名: {user.username}', 'success')
     
     return jsonify({'code': 0, 'msg': '重置成功', 'password': new_password})
 
@@ -495,7 +567,14 @@ def api_users_delete(id):
     if not user:
         return jsonify({'code': 1, 'msg': '用户不存在'})
     
+    # 超级管理员不能被删除
+    if is_super_admin_user(user):
+        return jsonify({'code': 1, 'msg': '超级管理员不能被删除'})
+    
     user.status = 0
     db.session.commit()
+    
+    # 记录日志
+    add_log('user', '删除用户', f'用户名: {user.username}', 'success')
     
     return jsonify({'code': 0, 'msg': '删除成功'})

@@ -241,25 +241,28 @@ function saveField() {
                 $('#fieldModal').modal('hide');
                 loadFields(currentFieldType);
             } else {
-                alert(res.msg);
+                swalWarning(res.msg);
             }
         }
     });
 }
 
 function deleteField(id) {
-    if (!confirm('确定要删除该选项吗？')) return;
+    swalConfirm('确定要删除该选项吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: '/system/api/field/delete/' + id,
-        type: 'POST',
-        success: function(res) {
-            if (res.code === 0) {
-                loadFields(currentFieldType);
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: '/system/api/field/delete/' + id,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    loadFields(currentFieldType);
+                    swalSuccess('删除成功');
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 </script>

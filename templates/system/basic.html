@@ -150,14 +150,14 @@ function saveBasic() {
                                 $('#logoPreview').attr('src', uploadRes.data).show();
                                 $('#logoPlaceholder').hide();
                             }
-                            alert('保存成功');
+                            swalWarning('保存成功');
                         }
                     });
                 } else {
-                    alert('保存成功');
+                    swalWarning('保存成功');
                 }
             } else {
-                alert(res.msg);
+                swalWarning(res.msg);
             }
         }
     });
@@ -173,9 +173,9 @@ function saveBusiness() {
         data: JSON.stringify({ free_shipping_amount: freeShippingAmount }),
         success: function(res) {
             if (res.code === 0) {
-                alert('保存成功');
+                swalWarning('保存成功');
             } else {
-                alert(res.msg);
+                swalWarning(res.msg);
             }
         }
     });

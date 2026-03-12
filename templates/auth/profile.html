@@ -107,9 +107,9 @@ $(document).ready(function() {
                     // 更新顶部头像
                     $('#topAvatar').attr('src', res.data.avatar);
                     $('#sidebarAvatar').attr('src', res.data.avatar);
-                    alert('头像上传成功');
+                    swalSuccess('头像上传成功');
                 } else {
-                    alert(res.msg);
+                    swalError(res.msg);
                 }
             }
         });
@@ -124,17 +124,17 @@ $(document).ready(function() {
         var confirmPassword = $('#confirmPassword').val();
         
         if (!oldPassword || !newPassword || !confirmPassword) {
-            alert('请填写完整');
+            swalWarning('请填写完整');
             return;
         }
         
         if (newPassword.length < 6) {
-            alert('新密码至少6位');
+            swalWarning('新密码至少6位');
             return;
         }
         
         if (newPassword !== confirmPassword) {
-            alert('两次密码输入不一致');
+            swalWarning('两次密码输入不一致');
             return;
         }
         
@@ -148,10 +148,11 @@ $(document).ready(function() {
             }),
             success: function(res) {
                 if (res.code === 0) {
-                    alert('密码修改成功，请重新登录');
-                    location.href = '/logout';
+                    swalSuccess('密码修改成功，请重新登录').then(() => {
+                        location.href = '/logout';
+                    });
                 } else {
-                    alert(res.msg);
+                    swalError(res.msg);
                 }
             }
         });

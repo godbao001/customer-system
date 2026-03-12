@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}店铺统计 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h4><i class="bi bi-shop me-2"></i>店铺统计</h4>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-shop text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0">活跃店铺</p>
+                        <h4 class="mb-0" id="totalShops">-</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-pause-circle text-warning fs-4"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0">停用店铺</p>
+                        <h4 class="mb-0" id="disabledShops">-</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-percent text-success fs-4"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0">使用率</p>
+                        <h4 class="mb-0" id="usageRate">-</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 地图区域 -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0">
+        <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>店铺地域分布</h5>
+    </div>
+    <div class="card-body">
+        <div id="mapChart" style="height: 500px;"></div>
+    </div>
+</div>
+
+<!-- 列表区域 - 调整为2x2布局 -->
+<div class="row mt-4">
+    <!-- 各省份店铺数量 -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-list me-2"></i>各省份店铺数量</h6>
+            </div>
+            <div class="card-body" id="provinceList" style="max-height: 300px; overflow-y: auto;">
+                <div class="text-center text-muted">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 各市店铺数量 -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-building me-2"></i>各市店铺数量</h6>
+            </div>
+            <div class="card-body" id="cityList" style="max-height: 300px; overflow-y: auto;">
+                <div class="text-center text-muted">加载中...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 店铺状态分布 -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>店铺状态分布</h6>
+            </div>
+            <div class="card-body">
+                <div id="pieChart" style="height: 200px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+var mapChart = null;
+var pieChart = null;
+var mapLoaded = false;
+
+$(document).ready(function() {
+    // 加载中国地图
+    $.get('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json', function(geoJson) {
+        echarts.registerMap('china', geoJson);
+        mapLoaded = true;
+        loadStats();
+    }).fail(function() {
+        alert('地图加载失败，请检查网络连接');
+        loadStats();
+    });
+});
+
+function loadStats() {
+    $.get('/stats/api/shop/summary', function(res) {
+        if (res.code === 0) {
+            var data = res.data;
+            $('#totalShops').text(data.total_shops || 0);
+            $('#disabledShops').text(data.disabled_shops || 0);
+            
+            var total = data.total_shops + data.disabled_shops;
+            var rate = total > 0 ? ((data.total_shops / total) * 100).toFixed(1) : 0;
+            $('#usageRate').text(rate + '%');
+            
+            initPieChart(data.total_shops, data.disabled_shops);
+        }
+    });
+    
+    // 加载省份数据
+    $.get('/stats/api/shop/by_province', function(res) {
+        if (res.code === 0) {
+            var data = res.data || [];
+            if (mapLoaded) {
+                initMapChart(data);
+            }
+            renderProvinceList(data);
+        }
+    });
+    
+    // 加载城市数据
+    $.get('/stats/api/shop/by_city', function(res) {
+        if (res.code === 0) {
+            var data = res.data || [];
+            renderCityList(data);
+        }
+    });
+}
+
+function initMapChart(data) {
+    if (!$('#mapChart').length) return;
+    
+    mapChart = echarts.init(document.getElementById('mapChart'));
+    
+    var maxVal = Math.max.apply(null, data.map(function(d) { return d.value; }).concat([10]));
+    
+    var option = {
+        tooltip: {
+            trigger: 'item',
+            formatter: function(params) {
+                return params.name + '<br/>店铺数量: ' + (params.value || 0);
+            }
+        },
+        visualMap: {
+            min: 0,
+            max: maxVal,
+            left: 'left',
+            top: 'bottom',
+            text: ['高', '低'],
+            calculable: true,
+            inRange: {
+                color: ['#e0f3f8', '#007bff']
+            }
+        },
+        series: [
+            {
+                name: '店铺数量',
+                type: 'map',
+                map: 'china',
+                roam: true,
+                label: {
+                    show: false
+                },
+                emphasis: {
+                    label: {
+                        show: true
+                    },
+                    itemStyle: {
+                        areaColor: '#ffc107'
+                    }
+                },
+                data: data
+            }
+        ]
+    };
+    
+    mapChart.setOption(option);
+    
+    window.addEventListener('resize', function() {
+        mapChart.resize();
+    });
+}
+
+function renderProvinceList(data) {
+    if (!data || data.length === 0) {
+        $('#provinceList').html('<div class="text-center text-muted">暂无数据</div>');
+        return;
+    }
+    
+    data.sort(function(a, b) { return b.value - a.value; });
+    
+    var total = data.reduce(function(sum, item) { return sum + item.value; }, 0);
+    
+    var html = '<div class="table-responsive"><table class="table table-sm table-hover">';
+    html += '<thead><tr><th>省份</th><th>数量</th><th>占比</th></tr></thead>';
+    html += '<tbody>';
+    
+    data.forEach(function(item) {
+        var percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+        html += '<tr><td>' + item.name + '</td><td><span class="badge bg-primary">' + item.value + '</span></td><td>' + percent + '%</td></tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    $('#provinceList').html(html);
+}
+
+function renderCityList(data) {
+    if (!data || data.length === 0) {
+        $('#cityList').html('<div class="text-center text-muted">暂无数据</div>');
+        return;
+    }
+    
+    data.sort(function(a, b) { return b.value - a.value; });
+    
+    var total = data.reduce(function(sum, item) { return sum + item.value; }, 0);
+    
+    var html = '<div class="table-responsive"><table class="table table-sm table-hover">';
+    html += '<thead><tr><th>城市</th><th>数量</th><th>占比</th></tr></thead>';
+    html += '<tbody>';
+    
+    // 只显示前30条
+    var displayData = data.slice(0, 30);
+    displayData.forEach(function(item) {
+        var percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+        html += '<tr><td>' + item.name + '</td><td><span class="badge bg-info">' + item.value + '</span></td><td>' + percent + '%</td></tr>';
+    });
+    
+    if (data.length > 30) {
+        html += '<tr><td colspan="3" class="text-muted text-center">... 还有 ' + (data.length - 30) + ' 个城市</td></tr>';
+    }
+    
+    html += '</tbody></table></div>';
+    $('#cityList').html(html);
+}
+
+function initPieChart(active, disabled) {
+    if (!$('#pieChart').length) return;
+    
+    pieChart = echarts.init(document.getElementById('pieChart'));
+    
+    var option = {
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+            label: { show: true, formatter: '{b}: {c}' },
+            data: [
+                { value: active, name: '活跃', itemStyle: { color: '#28a745' } },
+                { value: disabled, name: '停用', itemStyle: { color: '#6c757d' } }
+            ]
+        }]
+    };
+    
+    pieChart.setOption(option);
+}
+</script>
+{% endblock %}

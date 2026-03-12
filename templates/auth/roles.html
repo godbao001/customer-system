@@ -84,6 +84,7 @@ function renderPermissions(selectedPermissions) {
     
     const permGroups = {
         '基础权限': ['login'],
+        '统计管理': ['stats_view'],
         '客户管理': ['shop_view', 'shop_add', 'shop_edit', 'shop_delete'],
         '订单管理': ['order_view', 'order_edit', 'order_delete'],
         '产品管理': ['product_view', 'product_edit'],
@@ -167,7 +168,7 @@ function saveRole() {
     const roleName = $('#roleName').val().trim();
     
     if (!roleName) {
-        alert('请输入角色名称');
+        swalWarning('请输入角色名称');
         return;
     }
     
@@ -191,28 +192,30 @@ function saveRole() {
             if (res.code === 0) {
                 $('#roleModal').modal('hide');
                 loadData();
-                alert(id ? '修改成功' : '添加成功');
+                swalSuccess(id ? '修改成功' : '添加成功');
             } else {
-                alert(res.msg);
+                swalError(res.msg);
             }
         }
     });
 }
 
 function deleteRole(id) {
-    if (!confirm('确定要删除该角色吗？')) return;
+    swalConfirm('确定要删除该角色吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: `/api/roles/delete/${id}`,
-        type: 'POST',
-        success: function(res) {
-            if (res.code === 0) {
-                loadData();
-                alert('删除成功');
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: `/api/roles/delete/${id}`,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData();
+                    swalSuccess('删除成功');
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 </script>

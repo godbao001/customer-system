@@ -5,6 +5,7 @@ from models import db, Shop, Order, get_pinyin, get_pinyin_initial
 from sqlalchemy import or_, func
 from utils.address_parser import parse_address
 from utils.kuaibao_parser import clear_address
+from utils.log import add_log
 import json
 
 shop_bp = Blueprint('shop', __name__, url_prefix='/shop')
@@ -153,9 +154,14 @@ def api_add():
         )
         db.session.add(shop)
         db.session.commit()
+        
+        # 记录日志
+        add_log('shop', '添加店铺', f'店铺名称: {shop.shop_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '添加成功', 'data': shop.to_dict()})
     except Exception as e:
         db.session.rollback()
+        add_log('shop', '添加店铺', f'店铺名称: {data.get("shop_name")}', 'fail')
         return jsonify({'code': 1, 'msg': f'添加失败: {str(e)}'})
 
 # 获取单个店铺详情
@@ -231,9 +237,14 @@ def api_edit(id):
         shop.address_initial = address_initial
         shop.remark = data.get('remark', shop.remark)
         db.session.commit()
+        
+        # 记录日志
+        add_log('shop', '编辑店铺', f'店铺名称: {shop.shop_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '修改成功', 'data': shop.to_dict()})
     except Exception as e:
         db.session.rollback()
+        add_log('shop', '编辑店铺', f'店铺ID: {id}', 'fail')
         return jsonify({'code': 1, 'msg': f'修改失败: {str(e)}'})
 
 # 停用/启用店铺
@@ -246,7 +257,12 @@ def api_toggle_status(id):
     
     try:
         shop.status = 0 if shop.status == 1 else 1
+        status_text = '停用' if shop.status == 0 else '启用'
         db.session.commit()
+        
+        # 记录日志
+        add_log('shop', f'{status_text}店铺', f'店铺名称: {shop.shop_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '操作成功', 'data': shop.to_dict()})
     except Exception as e:
         db.session.rollback()
@@ -263,9 +279,14 @@ def api_delete(id):
     try:
         db.session.delete(shop)
         db.session.commit()
+        
+        # 记录日志
+        add_log('shop', '删除店铺', f'店铺名称: {shop.shop_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '删除成功'})
     except Exception as e:
         db.session.rollback()
+        add_log('shop', '删除店铺', f'店铺ID: {id}', 'fail')
         return jsonify({'code': 1, 'msg': f'删除失败: {str(e)}'})
 
 # 检查店铺名称API

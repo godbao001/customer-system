@@ -5,6 +5,7 @@ from functools import wraps
 # 所有权限定义
 ALL_PERMISSIONS = {
     'login': '系统登录',
+    'stats_view': '查看统计',
     'shop_view': '查看客户',
     'shop_add': '添加客户',
     'shop_edit': '编辑客户',

@@ -3,10 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>{% block title %}客户管理系统{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+    <script src="https://unpkg.com/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <style>
+        /* Loading 骨架屏 */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-text {
+            height: 16px;
+            margin-bottom: 8px;
+        }
+        .skeleton-title {
+            height: 24px;
+            width: 60%;
+            margin-bottom: 12px;
+        }
+        .skeleton-table tr td {
+            padding: 12px;
+        }
+        
+        /* 空状态优化 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #dee2e6;
+            margin-bottom: 20px;
+        }
+        .empty-state h5 {
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        .empty-state p {
+            color: #adb5bd;
+            font-size: 14px;
+        }
+        
         body {
             background-color: #f5f6fa;
         }
@@ -226,6 +274,26 @@
                     </li>
                 </ul>
                 
+                <!-- 统计管理 -->
+                <div class="menu-title" onclick="toggleMenu(this)" style="cursor:pointer">统计管理 <i class="bi bi-chevron-right float-end"></i></div>
+                <ul class="nav flex-column sub-menu" style="display:none">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/stats/shop' %}active{% endif %}" href="/stats/shop">
+                            <i class="bi bi-shop"></i> 店铺统计
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/stats/order' %}active{% endif %}" href="/stats/order">
+                            <i class="bi bi-cart"></i> 订单统计
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/stats/revenue' %}active{% endif %}" href="/stats/revenue">
+                            <i class="bi bi-currency-dollar"></i> 营业额统计
+                        </a>
+                    </li>
+                </ul>
+                
                 <div class="menu-title" onclick="toggleMenu(this)" style="cursor:pointer">系统管理 <i class="bi bi-chevron-right float-end"></i></div>
                 <ul class="nav flex-column sub-menu" style="display:none">
                     <li class="nav-item">
@@ -286,6 +354,49 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 全局弹窗函数 - 使用 SweetAlert2 替代 alert
+        function swalSuccess(msg) {
+            Swal.fire({
+                icon: 'success',
+                title: '成功',
+                text: msg,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+        
+        function swalError(msg) {
+            Swal.fire({
+                icon: 'error',
+                title: '错误',
+                text: msg
+            });
+        }
+        
+        function swalWarning(msg) {
+            Swal.fire({
+                icon: 'warning',
+                title: '警告',
+                text: msg
+            });
+        }
+        
+        function swalConfirm(msg) {
+            return Swal.fire({
+                icon: 'question',
+                title: '确认',
+                text: msg,
+                showCancelButton: true,
+                confirmButtonText: '确定',
+                cancelButtonText: '取消'
+            });
+        }
+        
+        // 保留 alert 兼容性
+        function swalWarning(msg) {
+            swalWarning(msg);
+        }
+        
         function toggleSidebar() {
             $('#sidebar').toggleClass('collapsed');
             $('#toggleIcon').toggleClass('bi-chevron-left bi-chevron-right');
@@ -323,9 +434,13 @@
                     // 显示格式：姓名(用户名)
                     var displayName = res.name ? res.name + '(' + res.username + ')' : res.username;
                     $('#currentUsername').text(displayName);
-                    // 显示角色名称
+                    // 显示角色名称（美化样式）
                     var roleText = res.role_names ? res.role_names : (res.permissions && res.permissions.length >= 15 ? '超级管理员' : '');
-                    $('#currentRole').text(roleText);
+                    var roleHtml = roleText ? roleText.split(',').map(function(role, idx) {
+                        var colors = ['bg-primary', 'bg-success', 'bg-warning', 'bg-info', 'bg-danger', 'bg-secondary'];
+                        return '<span class="badge ' + colors[idx % colors.length] + ' me-1">' + role.trim() + '</span>';
+                    }).join('') : '<span class="text-muted">无角色</span>';
+                    $('#currentRole').html(roleHtml);
                     
                     // 根据权限显示/隐藏菜单
                     var perms = res.permissions || [];
@@ -348,6 +463,12 @@
                         $('a[href="/product/"]').closest('.sub-menu').hide();
                     }
                     
+                    // 统计管理 - 需要有查看权限
+                    if (!perms.includes('stats_view')) {
+                        $('a[href="/stats/shop"]').closest('.sub-menu').prev('.menu-title').hide();
+                        $('a[href="/stats/shop"]').closest('.sub-menu').hide();
+                    }
+                    
                     // 系统管理 - 需要 user_manage 或 role_manage 权限
                     if (!perms.includes('user_manage') && !perms.includes('role_manage')) {
                         $('a[href="/system/basic"]').closest('.sub-menu').prev('.menu-title').hide();
@@ -363,9 +484,12 @@
             });
         });
     </script>
+    
     {% block extra_js %}{% endblock %}
-<script>
-function toggleMenu(el) {
+    
+    <script>
+        // 页面交互函数
+        function toggleMenu(el) {
     // 先隐藏所有菜单
     var allTitles = document.querySelectorAll('.menu-title');
     allTitles.forEach(function(title) {

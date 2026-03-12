@@ -120,6 +120,7 @@ let businessModelColors = {};
 let defaultBusinessModel = '';
 let selectedBusinessModel = '';
 let searchTimer = null;
+let currentPage = 1;
 
 // ==================== 页面初始化 ====================
 $(document).ready(function() {
@@ -201,6 +202,11 @@ function updateButtons() {
 
 // ==================== 加载数据 ====================
 function loadData(page) {
+    // 保存当前页码
+    if (page !== undefined) {
+        currentPage = page;
+    }
+    
     const search = document.getElementById('searchInput').value;
     const searchId = document.getElementById('searchIdInput').value;
     
@@ -315,7 +321,9 @@ function renderPagination(total, currentPage) {
 
 // ==================== 恢复使用 ====================
 function restoreStatus(id) {
-    if (confirm('确定要恢复使用该客户吗？')) {
+    swalConfirm('确定要恢复使用该客户吗？').then((result) => {
+        if (!result.isConfirmed) return;
+        
         fetch(`/shop/api/toggle_status/${id}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -324,13 +332,13 @@ function restoreStatus(id) {
         .then(res => res.json())
         .then(data => {
             if (data.code === 0) {
-                showToast('恢复成功', 'success');
-                loadData(1);
+                swalSuccess('恢复成功');
+                loadData(currentPage);
             } else {
-                showToast(data.msg || '恢复失败', 'danger');
+                swalError(data.msg || '恢复失败');
             }
         });
-    }
+    });
 }
 
 // ==================== 删除相关 ====================

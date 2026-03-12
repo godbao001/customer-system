@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 {% extends "base.html" %}
 
 {% block title %}日志管理 - 客户管理系统{% endblock %}
@@ -8,13 +7,289 @@
     <h4><i class="bi bi-journal-text"></i> 日志管理</h4>
 </div>
 
-<div class="table-card">
+<!-- 搜索栏 -->
+<div class="table-card mb-3">
     <div class="card-body">
-        <div class="text-center py-5">
-            <i class="bi bi-journal-text" style="font-size: 4rem; color: #ccc;"></i>
-            <h5 class="mt-3 text-muted">日志管理</h5>
-            <p class="text-muted">功能开发中，敬请期待...</p>
+        <div class="row g-3">
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="searchDate" placeholder="选择日期" autocomplete="off">
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="searchResult" onchange="loadData()">
+                    <option value="">全部结果</option>
+                    <option value="success">成功</option>
+                    <option value="fail">失败</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" id="searchKeyword" placeholder="搜索操作人/操作内容...">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" onclick="loadData()">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- 日志列表 -->
+<div class="table-card">
+    <div class="card-body">
+        <!-- 标签页导航 -->
+        <ul class="nav nav-tabs mb-3" id="logTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" onclick="filterCategory('')">
+                    全部 <span class="badge bg-secondary" id="count-all">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab" onclick="filterCategory('login')">
+                    登录 <span class="badge bg-secondary" id="count-login">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="shop-tab" data-bs-toggle="tab" data-bs-target="#shop" type="button" role="tab" onclick="filterCategory('shop')">
+                    店铺 <span class="badge bg-secondary" id="count-shop">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="product-tab" data-bs-toggle="tab" data-bs-target="#product" type="button" role="tab" onclick="filterCategory('product')">
+                    产品 <span class="badge bg-secondary" id="count-product">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="order-tab" data-bs-toggle="tab" data-bs-target="#order" type="button" role="tab" onclick="filterCategory('order')">
+                    订单 <span class="badge bg-secondary" id="count-order">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="user-tab" data-bs-toggle="tab" data-bs-target="#user" type="button" role="tab" onclick="filterCategory('user')">
+                    用户 <span class="badge bg-secondary" id="count-user">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="role-tab" data-bs-toggle="tab" data-bs-target="#role" type="button" role="tab" onclick="filterCategory('role')">
+                    角色 <span class="badge bg-secondary" id="count-role">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab" onclick="filterCategory('system')">
+                    系统 <span class="badge bg-secondary" id="count-system">0</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- 日志表格 -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 160px;">时间</th>
+                        <th style="width: 100px;">操作人</th>
+                        <th style="width: 80px;">分类</th>
+                        <th>操作</th>
+                        <th>详情</th>
+                        <th style="width: 80px;">结果</th>
+                        <th style="width: 120px;">IP地址</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="7" class="text-center text-muted py-4">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted">共 <span id="totalCount">0</span> 条记录</small>
+            <nav>
+                <ul class="pagination mb-0" id="pagination"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentCategory = '';
+let currentPage = 1;
+let pageSize = 20;
+
+$(document).ready(function() {
+    // 设置默认日期为今天
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const defaultDate = `${yyyy}-${mm}-${dd}`;
+    $('#searchDate').val(defaultDate);
+    
+    // 初始化 flatpickr
+    flatpickr("#searchDate", {
+        locale: "zh",
+        dateFormat: "Y-m-d",
+        defaultDate: defaultDate,
+        onChange: function(selectedDates, dateStr, instance) {
+            loadData();
+            loadCategories();
+        }
+    });
+    
+    loadCategories();
+    loadData();
+});
+
+// 加载分类统计
+function loadCategories() {
+    const date = $('#searchDate').val();
+    $.get('/system/api/log/categories', { date: date }, function(res) {
+        if (res.code === 0) {
+            // 重置所有计数为0
+            $('#count-all').text('0');
+            $('#count-login').text('0');
+            $('#count-logout').text('0');
+            $('#count-shop').text('0');
+            $('#count-product').text('0');
+            $('#count-order').text('0');
+            $('#count-user').text('0');
+            $('#count-role').text('0');
+            $('#count-system').text('0');
+            
+            res.data.forEach(item => {
+                if (item.category) {
+                    $('#count-' + item.category).text(item.count);
+                } else {
+                    $('#count-all').text(item.count);
+                }
+            });
+        }
+    });
+}
+
+// 筛选分类
+function filterCategory(category) {
+    currentCategory = category;
+    currentPage = 1;
+    loadData();
+    loadCategories();  // 更新分类数字
+}
+
+// 加载数据
+function loadData() {
+    const keyword = $('#searchKeyword').val().trim();
+    const result = $('#searchResult').val();
+    const date = $('#searchDate').val();
+    
+    $.get('/system/api/log/list', {
+        category: currentCategory,
+        result: result,
+        keyword: keyword,
+        date: date,
+        page: currentPage,
+        page_size: pageSize
+    }, function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+            renderPagination(res.total, res.page);
+            $('#totalCount').text(res.total);
+        }
+    });
+}
+
+// 渲染表格
+function renderTable(data) {
+    const tbody = $('#tableBody');
+    if (data.length === 0) {
+        tbody.html('<tr><td colspan="7" class="text-center text-muted py-4">暂无数据</td></tr>');
+        return;
+    }
+    
+    let html = '';
+    data.forEach(item => {
+        const resultClass = item.result === 'success' ? 'text-success' : 'text-danger';
+        const resultText = item.result === 'success' ? '成功' : '失败';
+        
+        // 分类颜色
+        const categoryColors = {
+            'login': 'bg-primary',
+            'logout': 'bg-secondary',
+            'shop': 'bg-info',
+            'product': 'bg-warning',
+            'order': 'bg-success',
+            'user': 'bg-danger',
+            'role': 'bg-dark',
+            'system': 'bg-light text-dark'
+        };
+        const categoryClass = categoryColors[item.category] || 'bg-secondary';
+        
+        html += `<tr>
+            <td><small class="text-muted">${item.created_at}</small></td>
+            <td>
+                <div>${item.user_name || '-'}</div>
+                <small class="text-muted">${item.username || ''}</small>
+            </td>
+            <td><span class="badge ${categoryClass}">${item.category_name}</span></td>
+            <td>${item.action}</td>
+            <td><small class="text-muted">${item.detail || '-'}</small></td>
+            <td><span class="${resultClass}">${resultText}</span></td>
+            <td><small class="text-muted">${item.ip || '-'}</small></td>
+        </tr>`;
+    });
+    tbody.html(html);
+}
+
+// 渲染分页
+function renderPagination(total, page) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pagination = $('#pagination');
+    
+    if (totalPages <= 1) {
+        pagination.html('');
+        return;
+    }
+    
+    let html = '';
+    
+    // 上一页
+    if (page > 1) {
+        html += `<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goPage(${page - 1})">上一页</a></li>`;
+    } else {
+        html += `<li class="page-item disabled"><span class="page-link">上一页</span></li>`;
+    }
+    
+    // 页码
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === page) {
+            html += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+        } else if (i === 1 || i === totalPages || (i >= page - 2 && i <= page + 2)) {
+            html += `<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goPage(${i})">${i}</a></li>`;
+        } else if (i === page - 3 || i === page + 3) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    // 下一页
+    if (page < totalPages) {
+        html += `<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goPage(${page + 1})">下一页</a></li>`;
+    } else {
+        html += `<li class="page-item disabled"><span class="page-link">下一页</span></li>`;
+    }
+    
+    pagination.html(html);
+}
+
+function goPage(page) {
+    currentPage = page;
+    loadData();
+}
+
+// 回车搜索
+$('#searchKeyword').keypress(function(e) {
+    if (e.which === 13) {
+        loadData();
+    }
+});
+</script>
 {% endblock %}

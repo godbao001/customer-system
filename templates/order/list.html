@@ -228,39 +228,63 @@ function viewDetail(id) {
 
 // 更新订单状态
 function updateStatus(id, status, text) {
-    if (!confirm('确定要将订单状态改为"' + text + '"吗？')) return;
+    swalConfirm('确定要将订单状态改为"' + text + '"吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: '/order/api/update_status/' + id,
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({status: status}),
-        success: function(res) {
-            if (res.code === 0) {
-                loadData(currentPage);
-                alert('状态更新成功');
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: '/order/api/update_status/' + id,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({status: status}),
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData(currentPage);
+                    swalSuccess('状态更新成功');
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 
 // 删除订单
 function deleteOrder(id) {
-    if (!confirm('确定要删除该订单吗？')) return;
+    swalConfirm('确定要删除该订单吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: '/order/api/delete/' + id,
-        type: 'POST',
-        success: function(res) {
-            if (res.code === 0) {
-                loadData(currentPage);
-                alert('删除成功');
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: '/order/api/delete/' + id,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData(currentPage);
+                    swalSuccess('删除成功');
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
+    });
+}
+
+// 恢复订单
+function restoreOrder(id) {
+    swalConfirm('确定要恢复该订单吗？').then((result) => {
+        if (!result.isConfirmed) return;
+    
+        $.ajax({
+            url: '/order/api/restore/' + id,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData(currentPage);
+                    swalSuccess('恢复成功');
+                } else {
+                    swalError(res.msg);
+                }
+            }
+        });
     });
 }
 </script>

@@ -2,7 +2,8 @@
 from permissions import check_permission, ALL_PERMISSIONS
 
 from flask import Blueprint, render_template, request, jsonify, send_from_directory, session, redirect
-from models import db, SystemConfig, FieldConfig
+from models import db, SystemConfig, FieldConfig, OperationLog
+from utils.log import add_log
 import os
 import uuid
 import json
@@ -56,9 +57,15 @@ def api_basic_save():
                 db.session.add(config)
         
         db.session.commit()
+        
+        # 记录日志
+        keys = ', '.join(data.keys())
+        add_log('system', '系统设置', f'修改配置: {keys}', 'success')
+        
         return jsonify({'code': 0, 'msg': '保存成功'})
     except Exception as e:
         db.session.rollback()
+        add_log('system', '系统设置', f'修改配置失败', 'fail')
         return jsonify({'code': 1, 'msg': f'保存失败: {str(e)}'})
 
 
@@ -204,6 +211,95 @@ def log():
 @check_permission('system_log')
 def api_log_list():
     """获取日志列表"""
-    # TODO: 后续完善日志查询逻辑
-    # 目前返回空列表
-    return jsonify({'code': 0, 'data': [], 'total': 0})
+    category = request.args.get('category', '')
+    result = request.args.get('result', '')
+    keyword = request.args.get('keyword', '')
+    date = request.args.get('date', '')
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 20))
+    
+    query = OperationLog.query
+    
+    # 按分类筛选
+    if category:
+        query = query.filter_by(category=category)
+    
+    # 按结果筛选
+    if result:
+        query = query.filter_by(result=result)
+    
+    # 按日期筛选
+    if date:
+        from datetime import datetime
+        try:
+            start_date = datetime.strptime(date, '%Y-%m-%d')
+            end_date = datetime.strptime(date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            query = query.filter(OperationLog.created_at >= start_date, OperationLog.created_at <= end_date)
+        except:
+            pass  # 日期格式错误则忽略
+    
+    # 关键词搜索（搜索操作人、操作动作、操作详情）
+    if keyword:
+        query = query.filter(
+            db.or_(
+                OperationLog.username.ilike(f'%{keyword}%'),
+                OperationLog.user_name.ilike(f'%{keyword}%'),
+                OperationLog.action.ilike(f'%{keyword}%'),
+                OperationLog.detail.ilike(f'%{keyword}%')
+            )
+        )
+    
+    # 按时间倒序
+    query = query.order_by(OperationLog.created_at.desc())
+    
+    # 分页
+    total = query.count()
+    logs = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    return jsonify({
+        'code': 0, 
+        'data': [log.to_dict() for log in logs], 
+        'total': total,
+        'page': page,
+        'page_size': page_size
+    })
+
+
+@system_bp.route('/api/log/categories')
+@check_permission('system_log')
+def api_log_categories():
+    """获取日志分类统计"""
+    date = request.args.get('date', '')
+    
+    query = OperationLog.query
+    
+    # 按日期筛选
+    if date:
+        from datetime import datetime
+        try:
+            start_date = datetime.strptime(date, '%Y-%m-%d')
+            end_date = datetime.strptime(date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            query = query.filter(OperationLog.created_at >= start_date, OperationLog.created_at <= end_date)
+        except:
+            pass
+    
+    # 统计每个分类的日志数量
+    categories = query.with_entities(
+        OperationLog.category, 
+        db.func.count(OperationLog.id)
+    ).group_by(OperationLog.category).all()
+    
+    result = []
+    total = 0
+    for cat, count in categories:
+        result.append({
+            'category': cat,
+            'category_name': OperationLog.CATEGORY_NAMES.get(cat, cat),
+            'count': count
+        })
+        total += count
+    
+    # 添加"全部"选项
+    result.insert(0, {'category': '', 'category_name': '全部', 'count': total})
+    
+    return jsonify({'code': 0, 'data': result})

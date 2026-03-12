@@ -367,7 +367,7 @@ function saveProduct() {
     };
     
     if (!data.product_name) {
-        alert('请填写产品名称');
+        swalWarning('请填写产品名称');
         return;
     }
     
@@ -382,9 +382,9 @@ function saveProduct() {
             if (res.code === 0) {
                 $('#productModal').modal('hide');
                 loadData(currentPage);
-                alert(id ? '修改成功' : '添加成功');
+                swalSuccess(id ? '修改成功' : '添加成功');
             } else {
-                alert(res.msg);
+                swalError(res.msg);
             }
         }
     });
@@ -402,7 +402,7 @@ function toggleStatus(id, status) {
                 loadData(currentPage);
                 alert('操作成功');
             } else {
-                alert(res.msg);
+                swalError(res.msg);
             }
         }
     });
@@ -419,7 +419,7 @@ function toggleSalesStatus(id) {
             if (res.code === 0) {
                 loadData(currentPage);
             } else {
-                alert(res.msg);
+                swalError(res.msg);
             }
         }
     });
@@ -436,7 +436,7 @@ function toggleFreeShipping(id) {
             if (res.code === 0) {
                 loadData(currentPage);
             } else {
-                alert(res.msg);
+                swalError(res.msg);
             }
         }
     });
@@ -454,7 +454,7 @@ function deleteProduct(id) {
                 loadData(currentPage);
                 alert('删除成功');
             } else {
-                alert(res.msg);
+                swalError(res.msg);
             }
         }
     });

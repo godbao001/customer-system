@@ -175,37 +175,41 @@ function renderPagination(total, page) {
 
 // 切换状态
 function toggleStatus(id, status) {
-    if (!confirm(status === 1 ? '确定要启用该产品吗？' : '确定要停用该产品吗？')) return;
+    swalConfirm(status === 1 ? '确定要启用该产品吗？' : '确定要停用该产品吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: `/product/api/toggle_status/${id}`,
-        type: 'POST',
-        success: function(res) {
-            if (res.code === 0) {
-                loadData(currentPage);
-                alert('操作成功');
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: `/product/api/toggle_status/${id}`,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData(currentPage);
+                    swalSuccess('操作成功');
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 
 // 删除产品
 function deleteProduct(id) {
-    if (!confirm('确定要删除该产品吗？此操作不可恢复！')) return;
+    swalConfirm('确定要删除该产品吗？此操作不可恢复！').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: `/product/api/delete/${id}`,
-        type: 'POST',
-        success: function(res) {
-            if (res.code === 0) {
-                loadData(currentPage);
-                alert('删除成功');
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: `/product/api/delete/${id}`,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData(currentPage);
+                    swalSuccess('删除成功');
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 

@@ -150,7 +150,7 @@ function saveGroup() {
     };
     
     if (!data.group_name) {
-        alert('请填写分类组名称');
+        swalWarning('请填写分类组名称');
         return;
     }
     
@@ -165,9 +165,9 @@ function saveGroup() {
             if (res.code === 0) {
                 $('#groupModal').modal('hide');
                 loadData();
-                alert(id ? '修改成功' : '添加成功');
+                swalWarning(id ? '修改成功' : '添加成功');
             } else {
-                alert(res.msg);
+                swalWarning(res.msg);
             }
         }
     });
@@ -175,19 +175,21 @@ function saveGroup() {
 
 // 删除分类组
 function deleteGroup(id) {
-    if (!confirm('确定要删除该分类组吗？')) return;
+    swalConfirm('确定要删除该分类组吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: `/product/api/group/delete/${id}`,
-        type: 'POST',
-        success: function(res) {
-            if (res.code === 0) {
-                loadData();
-                alert('删除成功');
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: `/product/api/group/delete/${id}`,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData();
+                    swalSuccess('删除成功');
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 

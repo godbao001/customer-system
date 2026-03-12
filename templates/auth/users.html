@@ -3,11 +3,8 @@
 {% block title %}用户管理 - 客户管理系统{% endblock %}
 
 {% block content %}
-<div class="content-header d-flex justify-content-between align-items-center">
+<div class="content-header">
     <h4 class="mb-0"><i class="bi bi-people me-2"></i>用户管理</h4>
-    <button class="btn btn-primary" onclick="showAddModal()">
-        <i class="bi bi-plus-lg me-1"></i> 添加用户
-    </button>
 </div>
 
 <div class="table-card">
@@ -29,42 +26,6 @@
                 <tr><td colspan="8" class="text-center text-muted py-4">加载中...</td></tr>
             </tbody>
         </table>
-    </div>
-</div>
-
-<!-- 添加用户弹窗 -->
-<div class="modal fade" id="userModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="userModalTitle">添加用户</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">姓名 <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="userName" placeholder="请输入姓名">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">用户名 <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="username" placeholder="请输入用户名">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">密码 <span class="text-danger">*</span></label>
-                    <input type="password" class="form-control" id="password" placeholder="请输入密码">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">角色（可多选）</label>
-                    <select class="form-select" id="roleSelect" multiple style="height: 120px;">
-                    </select>
-                    <small class="text-muted">按住Ctrl或Cmd可多选</small>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="saveUser()">保存</button>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -111,12 +72,22 @@ function loadRoles() {
     $.get('/api/roles', function(res) {
         if (res.code === 0) {
             rolesData = res.data;
-            const select = $('#roleSelect');
             const editSelect = $('#editRoleSelect');
+            const hasSuperAdmin = res.has_super_admin;
+            
             rolesData.forEach(role => {
-                select.append(`<option value="${role.id}">${role.role_name}</option>`);
-                editSelect.append(`<option value="${role.id}">${role.role_name}</option>`);
+                // 如果已有超级管理员，禁用超级管理员角色选项
+                if (hasSuperAdmin && role.is_super_admin) {
+                    editSelect.append(`<option value="${role.id}" disabled>${role.role_name} (已存在)</option>`);
+                } else {
+                    editSelect.append(`<option value="${role.id}">${role.role_name}</option>`);
+                }
             });
+            
+            // 如果已有超级管理员，显示提示
+            if (hasSuperAdmin) {
+                $('.modal-body').first().prepend('<div class="alert alert-warning py-1 px-2 mb-2" style="font-size:0.85rem;">系统已有超级管理员，其他用户无法设置为超级管理员</div>');
+            }
         }
     });
 }
@@ -143,8 +114,28 @@ function renderTable(data) {
             ? '<span class="badge bg-success">启用</span>' 
             : '<span class="badge bg-secondary">停用</span>';
         
-        const roleNames = item.role_names || '<span class="text-muted">无角色</span>';
+        const roleNames = item.role_names ? item.role_names.split(',').map((role, idx) => {
+            const colors = ['bg-primary', 'bg-success', 'bg-warning', 'bg-info', 'bg-danger', 'bg-secondary'];
+            const color = colors[idx % colors.length];
+            return `<span class="badge ${color} me-1">${role.trim()}</span>`;
+        }).join('') : '<span class="text-muted">无角色</span>';
         const permCount = (item.permissions || []).length;
+        
+        // 超级管理员隐藏操作按钮
+        const isSuperAdmin = item.is_super_admin;
+        const actionButtons = isSuperAdmin ? '<span class="text-muted"><i class="bi bi-shield-fill-check"></i> 超级管理员</span>' : `
+            <button class="btn btn-sm ${isEnabled ? 'btn-outline-warning' : 'btn-outline-success'} me-1" 
+                    onclick="toggleStatus(${item.id}, ${isEnabled ? 0 : 1})" 
+                    title="${isEnabled ? '停用' : '启用'}">
+                <i class="bi bi${isEnabled ? '-pause-circle' : '-play-circle'}"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-info me-1" onclick="resetPassword(${item.id})" title="重置密码">
+                <i class="bi bi-key"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick="showEditRoleModal(${item.id}, '${item.username}', '${item.role_ids || ''}')" title="修改角色">
+                <i class="bi bi-shield-lock"></i>
+            </button>
+        `;
         
         html += `<tr>
             <td>${item.id}</td>
@@ -154,111 +145,50 @@ function renderTable(data) {
             <td><small class="text-muted">${permCount}个权限</small></td>
             <td>${statusBadge}</td>
             <td>${item.created_at || ''}</td>
-            <td>
-                <button class="btn btn-sm ${isEnabled ? 'btn-outline-warning' : 'btn-outline-success'} me-1" 
-                        onclick="toggleStatus(${item.id}, ${isEnabled ? 0 : 1})" 
-                        title="${isEnabled ? '停用' : '启用'}">
-                    <i class="bi bi${isEnabled ? '-pause-circle' : '-play-circle'}"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-info me-1" onclick="resetPassword(${item.id})" title="重置密码">
-                    <i class="bi bi-key"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="showEditRoleModal(${item.id}, '${item.username}', '${item.role_ids || ''}')" title="修改角色">
-                    <i class="bi bi-shield-lock"></i>
-                </button>
-            </td>
+            <td>${actionButtons}</td>
         </tr>`;
     });
     tbody.html(html);
 }
 
-function showAddModal() {
-    $('#userId').val('');
-    $('#userName').val('');
-    $('#username').val('');
-    $('#password').val('');
-    $('#roleSelect').val('');
-    $('#userModalTitle').text('添加用户');
-    $('#userModal').modal('show');
-}
-
-function saveUser() {
-    const userName = $('#userName').val().trim();
-    const username = $('#username').val().trim();
-    const password = $('#password').val();
-    const roleIds = $('#roleSelect').val() || [];
-    
-    if (!userName) {
-        alert('请输入姓名');
-        return;
-    }
-    if (!username) {
-        alert('请输入用户名');
-        return;
-    }
-    if (!password) {
-        alert('请输入密码');
-        return;
-    }
-    
-    const data = {
-        name: userName,
-        username: username,
-        password: password,
-        role_ids: roleIds
-    };
-    
-    $.ajax({
-        url: '/api/users/add',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function(res) {
-            if (res.code === 0) {
-                $('#userModal').modal('hide');
-                loadData();
-                alert('添加成功');
-            } else {
-                alert(res.msg);
-            }
-        }
-    });
-}
-
 function toggleStatus(userId, newStatus) {
     const action = newStatus === 1 ? '启用' : '停用';
-    if (!confirm(`确定要${action}该用户吗？`)) return;
+    swalConfirm(`确定要${action}该用户吗？`).then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: `/api/users/edit/${userId}`,
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ status: newStatus }),
-        success: function(res) {
-            if (res.code === 0) {
-                loadData();
-                alert(`${action}成功`);
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: `/api/users/edit/${userId}`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ status: newStatus }),
+            success: function(res) {
+                if (res.code === 0) {
+                    loadData();
+                    swalSuccess(`${action}成功`);
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 
 function resetPassword(userId) {
-    if (!confirm('确定要重置该用户密码吗？重置后密码将显示在下方。')) return;
+    swalConfirm('确定要重置该用户密码吗？重置后密码将显示在下方。').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: `/api/users/reset_password/${userId}`,
-        type: 'POST',
-        success: function(res) {
-            if (res.code === 0) {
-                alert(`密码重置成功！\n\n新密码：${res.password}\n\n请告知用户妥善保管！`);
-                loadData();
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: `/api/users/reset_password/${userId}`,
+            type: 'POST',
+            success: function(res) {
+                if (res.code === 0) {
+                    swalSuccess(`密码重置成功！\n\n新密码：${res.password}\n\n请告知用户妥善保管！`);
+                    loadData();
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 
@@ -286,9 +216,9 @@ function saveUserRoles() {
             if (res.code === 0) {
                 $('#roleModal').modal('hide');
                 loadData();
-                alert('角色修改成功');
+                swalSuccess('角色修改成功');
             } else {
-                alert(res.msg);
+                swalError(res.msg);
             }
         }
     });

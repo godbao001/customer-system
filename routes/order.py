@@ -6,6 +6,7 @@ from models import db, Order, OrderItem, Shop
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from datetime import datetime
+from utils.log import add_log
 import random
 import string
 import json
@@ -39,8 +40,13 @@ def api_list():
     limit = request.args.get('limit', 12, type=int)
     status = request.args.get('status', type=int)
     search = request.args.get('search', '').strip()
+    include_deleted = request.args.get('include_deleted', '0') == '1'  # 是否包含已删除订单
     
     query = Order.query
+    
+    # 默认不显示已删除的订单
+    if not include_deleted:
+        query = query.filter_by(is_deleted=0)
     
     if status:
         query = query.filter_by(status=status)
@@ -54,6 +60,35 @@ def api_list():
         )
     
     pagination = query.order_by(Order.id.desc()).paginate(page=page, per_page=limit, error_out=False)
+    orders = pagination.items
+    
+    return jsonify({
+        'code': 0,
+        'msg': 'success',
+        'count': pagination.total,
+        'data': [o.to_dict() for o in orders]
+    })
+
+
+@order_bp.route('/api/deleted')
+@check_permission('order_view')
+def api_deleted():
+    """获取已删除的订单列表"""
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 12, type=int)
+    search = request.args.get('search', '').strip()
+    
+    query = Order.query.filter_by(is_deleted=1)
+    
+    if search:
+        query = query.join(Shop).filter(
+            or_(
+                Order.order_no.like(f'%{search}%'),
+                Shop.shop_name.like(f'%{search}%')
+            )
+        )
+    
+    pagination = query.order_by(Order.deleted_at.desc()).paginate(page=page, per_page=limit, error_out=False)
     orders = pagination.items
     
     return jsonify({
@@ -155,7 +190,6 @@ def api_add():
     data = request.json
     
     shop_id = data.get('shop_id')
-    print(f"DEBUG: shop_id = {shop_id}, type = {type(shop_id)}")
     
     if not shop_id:
         return jsonify({'code': 1, 'msg': '请选择店铺'})
@@ -210,9 +244,14 @@ def api_add():
             db.session.add(order_item)
         
         db.session.commit()
+        
+        # 记录日志
+        add_log('order', '创建订单', f'订单号: {order.order_no}, 店铺: {shop.shop_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '下单成功', 'data': order.to_dict()})
     except Exception as e:
         db.session.rollback()
+        add_log('order', '创建订单', f'店铺ID: {shop_id}', 'fail')
         return jsonify({'code': 1, 'msg': f'下单失败: {str(e)}'})
 
 # 更新订单状态
@@ -264,6 +303,13 @@ def api_update_status(id):
             order.confirm_time = None
         
         db.session.commit()
+        
+        # 记录日志
+        from models import ORDER_STATUS
+        old_status_text = ORDER_STATUS.get(old_status, '')
+        new_status_text = ORDER_STATUS.get(new_status, '')
+        add_log('order', '更新订单状态', f'订单号: {order.order_no}, {old_status_text} → {new_status_text}', 'success')
+        
         return jsonify({'code': 0, 'msg': '状态更新成功', 'data': order.to_dict()})
     except Exception as e:
         db.session.rollback()
@@ -287,28 +333,61 @@ def api_edit(id):
         order.remark = data.get('remark', order.remark)
         
         db.session.commit()
+        
+        # 记录日志
+        add_log('order', '编辑订单', f'订单号: {order.order_no}', 'success')
+        
         return jsonify({'code': 0, 'msg': '保存成功', 'data': order.to_dict()})
     except Exception as e:
         db.session.rollback()
+        add_log('order', '编辑订单', f'订单ID: {id}', 'fail')
         return jsonify({'code': 1, 'msg': f'保存失败: {str(e)}'})
 
 # 删除订单
 @order_bp.route('/api/delete/<int:id>', methods=['POST'])
 @check_permission('order_delete')
 def api_delete(id):
+    """软删除订单"""
     order = Order.query.get(id)
     if not order:
         return jsonify({'code': 1, 'msg': '订单不存在'})
     
     try:
-        # 删除订单明细
-        OrderItem.query.filter_by(order_id=id).delete()
-        db.session.delete(order)
+        order.is_deleted = 1
+        order.deleted_at = datetime.now()
         db.session.commit()
+        
+        # 记录日志
+        add_log('order', '删除订单', f'订单号: {order.order_no}', 'success')
+        
         return jsonify({'code': 0, 'msg': '删除成功'})
     except Exception as e:
         db.session.rollback()
+        add_log('order', '删除订单', f'订单ID: {id}', 'fail')
         return jsonify({'code': 1, 'msg': f'删除失败: {str(e)}'})
+
+
+@order_bp.route('/api/restore/<int:id>', methods=['POST'])
+@check_permission('order_delete')
+def api_restore(id):
+    """恢复已删除的订单"""
+    order = Order.query.get(id)
+    if not order:
+        return jsonify({'code': 1, 'msg': '订单不存在'})
+    
+    try:
+        order.is_deleted = 0
+        order.deleted_at = None
+        db.session.commit()
+        
+        # 记录日志
+        add_log('order', '恢复订单', f'订单号: {order.order_no}', 'success')
+        
+        return jsonify({'code': 0, 'msg': '恢复成功'})
+    except Exception as e:
+        db.session.rollback()
+        add_log('order', '恢复订单', f'订单ID: {id}', 'fail')
+        return jsonify({'code': 1, 'msg': f'恢复失败: {str(e)}'})
 
 # 下单页面（新增订单）
 @order_bp.route('/add/<int:shop_id>')

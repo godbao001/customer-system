@@ -251,41 +251,44 @@ function updateStatus(status) {
         const address = '{{ order.express_shop_address or "" }}';
         const phone = '{{ order.express_shop_phone or "" }}';
         if (!address || !phone) {
-            alert('请先填写门店地址和门店电话');
+            swalWarning('请先填写门店地址和门店电话');
             return;
         }
     }
     
-    if (!confirm('确定要将订单状态改为"' + statusText[status] + '"吗？')) return;
+    swalConfirm('确定要将订单状态改为"' + statusText[status] + '"吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: '/order/api/update_status/' + orderId,
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({status: status}),
-        success: function(res) {
-            if (res.code === 0) {
-                alert('状态更新成功');
-                location.reload();
-            } else {
-                alert(res.msg);
+        $.ajax({
+            url: '/order/api/update_status/' + orderId,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({status: status}),
+            success: function(res) {
+                if (res.code === 0) {
+                    swalSuccess('状态更新成功');
+                    location.reload();
+                } else {
+                    swalError(res.msg);
+                }
             }
-        }
+        });
     });
 }
 
 function deleteOrder() {
-    if (!confirm('确定要删除该订单吗？')) return;
+    swalConfirm('确定要删除该订单吗？').then((result) => {
+        if (!result.isConfirmed) return;
     
-    $.ajax({
-        url: '/order/api/delete/' + orderId,
-        type: 'POST',
-        success: function(res) {
+        $.ajax({
+            url: '/order/api/delete/' + orderId,
+            type: 'POST',
+            success: function(res) {
             if (res.code === 0) {
-                alert('删除成功');
+                swalWarning('删除成功');
                 window.location.href = '/order/';
             } else {
-                alert(res.msg);
+                swalWarning(res.msg);
             }
         }
     });
@@ -859,7 +862,7 @@ function editUpdateRemark(idx, val) {
 
 function submitEditOrder() {
     if (editSelectedProducts.length === 0) {
-        alert('请至少选择一个产品');
+        swalWarning('请至少选择一个产品');
         return;
     }
     
@@ -884,10 +887,10 @@ function submitEditOrder() {
         success: function(res) {
             if (res.code === 0) {
                 $('#editOrderModal').modal('hide');
-                alert('修改成功');
+                swalWarning('修改成功');
                 location.reload();
             } else {
-                alert(res.msg);
+                swalWarning(res.msg);
             }
         }
     });

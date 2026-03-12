@@ -519,7 +519,7 @@ function updateRemark(itemIndex, newRemark) {
 
 function saveOrder() {
     if (selectedProducts.length === 0) {
-        alert('请至少选择一个产品');
+        swalWarning('请至少选择一个产品');
         return;
     }
     
@@ -546,7 +546,7 @@ function saveOrder() {
         data: JSON.stringify(data),
         success: function(res) {
             if (res.code === 0) {
-                alert(isNewOrder ? '下单成功' : '保存成功');
+                swalWarning(isNewOrder ? '下单成功' : '保存成功');
                 if (isNewOrder) {
                     // 新增订单后跳转到订单详情
                     window.location.href = '/order/detail/' + res.data.id;
@@ -561,7 +561,7 @@ function saveOrder() {
                     }
                 }
             } else {
-                alert(res.msg);
+                swalWarning(res.msg);
             }
         }
     });

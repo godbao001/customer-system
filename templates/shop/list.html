@@ -323,6 +323,9 @@
 
 {% block extra_js %}
 <script>
+// 当前页码
+var currentPage = 1;
+
 // 页面加载完成后隐藏没有权限的按钮，并加载数据
 document.addEventListener('DOMContentLoaded', function() {
     // 等待权限加载完成（最多等待2秒）
@@ -722,6 +725,11 @@ function loadBusinessModels() {
 }
 
 function loadData(page) {
+    // 保存当前页码
+    if (page !== undefined) {
+        currentPage = page;
+    }
+    
     const search = document.getElementById('searchInput').value;
     const searchId = document.getElementById('searchIdInput').value;
     
@@ -1138,7 +1146,7 @@ function saveShop() {
     .then(data => {
         if (data.code === 0) {
             $('#shopModal').modal('hide');
-            loadData(1);
+            loadData(currentPage);
         } else {
             showToast(data.msg, 'warning');
         }
@@ -1152,7 +1160,9 @@ function toggleStatus(id, currentStatus) {
     const newStatus = currentStatus === 1 ? 0 : 1;
     const action = newStatus === 1 ? '启用' : '停用';
     
-    if (confirm(`确定要${action}该客户吗？`)) {
+    swalConfirm(`确定要${action}该客户吗？`).then((result) => {
+        if (!result.isConfirmed) return;
+        
         fetch(`/shop/api/toggle_status/${id}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1161,12 +1171,12 @@ function toggleStatus(id, currentStatus) {
         .then(res => res.json())
         .then(data => {
             if (data.code === 0) {
-                loadData(1);
+                loadData(currentPage);
             } else {
-                showToast(data.msg, 'warning');
+                swalError(data.msg);
             }
         });
-    }
+    });
 }
 
 // ============= 下单弹窗相关变量 =============

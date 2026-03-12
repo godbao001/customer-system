@@ -4,6 +4,7 @@ from permissions import check_permission, ALL_PERMISSIONS
 from flask import Blueprint, render_template, request, jsonify, session, redirect
 from models import db, Product, ProductCategory, CategoryGroup, ProductCategoryValue, get_pinyin, get_pinyin_initial
 from sqlalchemy import or_
+from utils.log import add_log
 import json
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
@@ -341,9 +342,14 @@ def api_add():
             db.session.add(pcv)
         
         db.session.commit()
+        
+        # 记录日志
+        add_log('product', '添加产品', f'产品名称: {product.product_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '添加成功', 'data': product.to_dict(include_categories=True)})
     except Exception as e:
         db.session.rollback()
+        add_log('product', '添加产品', f'产品名称: {data.get("product_name")}', 'fail')
         return jsonify({'code': 1, 'msg': f'添加失败: {str(e)}'})
 
 # 编辑产品
@@ -392,9 +398,14 @@ def api_edit(id):
             db.session.add(pcv)
         
         db.session.commit()
+        
+        # 记录日志
+        add_log('product', '编辑产品', f'产品名称: {product.product_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '修改成功', 'data': product.to_dict(include_categories=True)})
     except Exception as e:
         db.session.rollback()
+        add_log('product', '编辑产品', f'产品ID: {id}', 'fail')
         return jsonify({'code': 1, 'msg': f'修改失败: {str(e)}'})
 
 # 停用/启用产品
@@ -407,7 +418,12 @@ def api_toggle_status(id):
     
     try:
         product.status = 0 if product.status == 1 else 1
+        status_text = '停用' if product.status == 0 else '启用'
         db.session.commit()
+        
+        # 记录日志
+        add_log('product', f'{status_text}产品', f'产品名称: {product.product_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '操作成功', 'data': product.to_dict()})
     except Exception as e:
         db.session.rollback()
@@ -423,7 +439,12 @@ def api_toggle_sales_status(id):
     
     try:
         product.sales_status = 0 if product.sales_status == 1 else 1
+        status_text = '停售' if product.sales_status == 0 else '在售'
         db.session.commit()
+        
+        # 记录日志
+        add_log('product', f'{status_text}产品', f'产品名称: {product.product_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '操作成功', 'data': product.to_dict()})
     except Exception as e:
         db.session.rollback()
@@ -439,7 +460,12 @@ def api_toggle_free_shipping(id):
     
     try:
         product.free_shipping = 0 if product.free_shipping == 1 else 1
+        shipping_text = '取消包邮' if product.free_shipping == 0 else '设为包邮'
         db.session.commit()
+        
+        # 记录日志
+        add_log('product', f'{shipping_text}产品', f'产品名称: {product.product_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '操作成功', 'data': product.to_dict()})
     except Exception as e:
         db.session.rollback()
@@ -458,7 +484,12 @@ def api_delete(id):
         ProductCategoryValue.query.filter_by(product_id=id).delete()
         db.session.delete(product)
         db.session.commit()
+        
+        # 记录日志
+        add_log('product', '删除产品', f'产品名称: {product.product_name}', 'success')
+        
         return jsonify({'code': 0, 'msg': '删除成功'})
     except Exception as e:
         db.session.rollback()
+        add_log('product', '删除产品', f'产品ID: {id}', 'fail')
         return jsonify({'code': 1, 'msg': f'删除失败: {str(e)}'})
