@@ -3,9 +3,47 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Role
 from utils.log import log_login, log_logout, add_log
+from config import Config
 import json
+import time
+from functools import wraps
 
 auth_bp = Blueprint('auth', __name__, url_prefix='')
+
+# 登录失败记录（内存存储，生产环境建议用 Redis）
+# 结构: {username: {'count': 次数, 'locked_until': 锁定截止时间}}
+login_failed_attempts = {}
+
+def check_login_lockout(username):
+    """检查账号是否被锁定"""
+    if username in login_failed_attempts:
+        attempt = login_failed_attempts[username]
+        if attempt['locked_until'] and time.time() < attempt['locked_until']:
+            remaining = int(attempt['locked_until'] - time.time())
+            return True, remaining
+        else:
+            # 锁定时间已过，清除记录
+            del login_failed_attempts[username]
+    return False, 0
+
+def record_login_failure(username):
+    """记录登录失败"""
+    current_time = time.time()
+    if username not in login_failed_attempts:
+        login_failed_attempts[username] = {'count': 0, 'locked_until': None}
+    
+    login_failed_attempts[username]['count'] += 1
+    
+    # 超过最大失败次数，锁定账号
+    if login_failed_attempts[username]['count'] >= Config.MAX_LOGIN_ATTEMPTS:
+        login_failed_attempts[username]['locked_until'] = current_time + Config.LOGIN_LOCKOUT_TIME
+        return True  # 已锁定
+    return False
+
+def clear_login_attempts(username):
+    """清除登录失败记录（登录成功后调用）"""
+    if username in login_failed_attempts:
+        del login_failed_attempts[username]
 
 # 辅助函数：判断用户是否是超级管理员
 def is_super_admin_user(user):
@@ -75,15 +113,46 @@ def api_login():
     if not username or not password:
         return jsonify({'code': 1, 'msg': '用户名和密码不能为空'})
     
+    # 检查是否被锁定
+    is_locked, remaining_time = check_login_lockout(username)
+    if is_locked:
+        log_login(username, False, f'账号被锁定，剩余{remaining_time}秒')
+        return jsonify({
+            'code': 1, 
+            'msg': f'登录失败次数过多，账号已被锁定，请{remaining_time}秒后再试'
+        })
+    
     user = User.query.filter_by(username=username).first()
     
     if not user or not check_password_hash(user.password_hash, password):
+        # 记录登录失败
+        is_now_locked = record_login_failure(username)
+        
+        # 获取剩余尝试次数
+        attempts_left = Config.MAX_LOGIN_ATTEMPTS - login_failed_attempts.get(username, {}).get('count', 0)
+        
         log_login(username, False, '密码错误')
-        return jsonify({'code': 1, 'msg': '用户名或密码错误'})
+        
+        if is_now_locked:
+            return jsonify({
+                'code': 1, 
+                'msg': f'登录失败次数过多，账号已被锁定{Config.LOGIN_LOCKOUT_TIME//60}分钟'
+            })
+        
+        return jsonify({
+            'code': 1, 
+            'msg': f'用户名或密码错误，剩余尝试次数: {attempts_left}'
+        })
     
     if user.status == 0:
         log_login(username, False, '账号被禁用')
         return jsonify({'code': 1, 'msg': '账号已被禁用'})
+    
+    # 登录成功，清除失败记录
+    clear_login_attempts(username)
+    
+    # 重新生成 Session ID（防止 Session 固定攻击）
+    session.clear()
     
     # 处理多角色权限合并
     permissions = []

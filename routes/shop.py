@@ -1,4 +1,10 @@
-# 店铺管理路由
+# -*- coding: utf-8 -*-
+"""
+店铺管理路由模块
+
+提供店铺（客户）的增删改查等操作接口。
+"""
+from typing import Optional, Dict, List, Any
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from permissions import check_permission, ALL_PERMISSIONS
 from models import db, Shop, Order, get_pinyin, get_pinyin_initial
@@ -6,32 +12,67 @@ from sqlalchemy import or_, func
 from utils.address_parser import parse_address
 from utils.kuaibao_parser import clear_address
 from utils.log import add_log
+from config import Config
 import json
 
 shop_bp = Blueprint('shop', __name__, url_prefix='/shop')
 
-# 店铺列表（正常状态）
+
 @shop_bp.route('/')
 @check_permission('shop_view')
-def list():
+def list() -> str:
+    """
+    店铺列表页面
+    
+    Returns:
+        店铺列表 HTML 页面
+    """
     return render_template('shop/list.html')
 
-# 店铺停用列表
+
 @shop_bp.route('/disabled')
 @check_permission('shop_view')
-def disabled():
+def disabled() -> str:
+    """
+    店铺停用列表页面
+    
+    Returns:
+        停用店铺列表 HTML 页面
+    """
     return render_template('shop/disabled.html')
 
-# 获取店铺列表API
+
 @shop_bp.route('/api/list')
 @check_permission('shop_view')
-def api_list():
-    status = request.args.get('status', 1, type=int)
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
-    search_id = request.args.get('search_id', '', type=str).strip()
-    search = request.args.get('search', '').strip()
-    business_model = request.args.get('business_model', '').strip()
+def api_list() -> Dict[str, Any]:
+    """
+    获取店铺列表 API
+    
+    Query Parameters:
+        status: 店铺状态 (1=正常, 0=停用)
+        page: 页码
+        limit: 每页数量
+        search: 搜索关键词
+        search_id: ID精确搜索
+        business_model: 经营模式筛选
+    
+    Returns:
+        JSON 包含店铺列表和分页信息
+    """
+    status: int = request.args.get('status', 1, type=int)
+    page: int = request.args.get('page', 1, type=int)
+    limit: int = request.args.get('limit', Config.PAGE_DEFAULT_LIMIT, type=int)
+    search_id: str = request.args.get('search_id', '', type=str).strip()
+    search: str = request.args.get('search', '').strip()
+    business_model: str = request.args.get('business_model', '').strip()
+    
+    # 分页参数安全限制
+    if page < 1:
+        page = 1
+    if limit < 1:
+        limit = Config.PAGE_DEFAULT_LIMIT
+    if limit > Config.PAGE_MAX_LIMIT:
+        limit = Config.PAGE_MAX_LIMIT
     
     # ID精确搜索优先
     if search_id:
@@ -61,7 +102,6 @@ def api_list():
             )
     
     # 分页
-    # 先获取总数（不受分页影响）
     total_count = query.count()
     
     pagination = query.order_by(Shop.id.desc()).paginate(page=page, per_page=limit, error_out=False)
@@ -81,7 +121,7 @@ def api_list():
         
         shop_dict['order_count'] = order_stats.order_count or 0
         shop_dict['total_amount'] = float(order_stats.total_amount or 0)
-        shop_dict['last_order_time'] = order_stats.last_order_time.strftime('%Y-%m-%d %H:%M:%S') if order_stats.last_order_time else ''
+        shop_dict['last_order_time'] = order_stats.last_order_time.strftime('%Y-%m-%d %H:%M') if order_stats.last_order_time else ''
         
         shop_data.append(shop_dict)
     
@@ -89,256 +129,277 @@ def api_list():
         'code': 0,
         'msg': 'success',
         'count': total_count,
-        'data': shop_data
+        'data': shop_data,
+        'page': page,
+        'limit': limit
     })
 
-# 添加店铺
+
 @shop_bp.route('/api/add', methods=['POST'])
 @check_permission('shop_add')
-def api_add():
-    data = request.json
+def api_add() -> Dict[str, Any]:
+    """
+    添加店铺 API
     
-    # 检查店铺名称是否重复
-    existing = Shop.query.filter_by(shop_name=data.get('shop_name')).first()
+    Request JSON:
+        shop_name: 店铺名称
+        phone: 电话
+        address: 地址
+        province/city/district: 省市区
+        business_model: 经营模式
+        free_shipping: 是否包邮
+        remark: 备注
+    
+    Returns:
+        JSON 添加结果
+    """
+    data = request.json
+    shop_name = data.get('shop_name', '').strip()
+    
+    if not shop_name:
+        return jsonify({'code': 1, 'msg': '店铺名称不能为空'})
+    
+    # 检查店铺名称是否已存在
+    existing = Shop.query.filter_by(shop_name=shop_name).first()
     if existing:
         return jsonify({'code': 1, 'msg': '店铺名称已存在'})
     
-    # 使用前端解析好的地址信息
-    region = data.get('region', '')
+    # 解析地址
+    address = data.get('address', '')
     province = data.get('province', '')
     city = data.get('city', '')
     district = data.get('district', '')
-    detail = data.get('detail', '')
-    address = data.get('address', '')
     
-    # 如果地址不为空，检查地址是否重复（使用解析后的字段）
-    if address and address.strip():
-        if not region or not province or not city or not district or not detail:
-            return jsonify({'code': 1, 'msg': '地址信息不完整，请检查大区、省、市、区县、详细地址'})
-        
-        # 检查地址是否重复
+    if address and not (province and city):
+        parsed = parse_address(address)
+        province = province or parsed.get('province', '')
+        city = city or parsed.get('city', '')
+        district = district or parsed.get('district', '')
+    
+    # 获取拼音
+    shop_name_pinyin = get_pinyin(shop_name) if shop_name else ''
+    shop_name_initial = get_pinyin_initial(shop_name) if shop_name else ''
+    address_pinyin = get_pinyin(address) if address else ''
+    address_initial = get_pinyin_initial(address) if address else ''
+    
+    # 检查地址是否已存在
+    if address and province and city and district:
         existing_addr = Shop.query.filter_by(
-            region=region,
             province=province,
             city=city,
             district=district,
-            address=detail
+            address=address,
+            status=1
         ).first()
         if existing_addr:
             return jsonify({'code': 1, 'msg': '该地址已存在'})
     
-    # 生成店铺名称拼音
-    shop_name_pinyin = get_pinyin(data.get('shop_name', ''))
-    shop_name_initial = get_pinyin_initial(data.get('shop_name', ''))
+    # 创建店铺
+    shop = Shop(
+        shop_name=shop_name,
+        shop_name_pinyin=shop_name_pinyin,
+        shop_name_initial=shop_name_initial,
+        phone=data.get('phone', ''),
+        province=province,
+        city=city,
+        district=district,
+        address=address,
+        address_pinyin=address_pinyin,
+        address_initial=address_initial,
+        business_model=data.get('business_model', ''),
+        free_shipping=data.get('free_shipping', 0),
+        remark=data.get('remark', ''),
+        status=1
+    )
     
-    # 生成地址拼音
-    full_addr = region + province + city + district + (detail or '')
-    address_pinyin = get_pinyin(full_addr)
-    address_initial = get_pinyin_initial(full_addr)
+    db.session.add(shop)
+    db.session.commit()
     
-    try:
-        shop = Shop(
-            shop_name=data.get('shop_name'),
-            shop_name_pinyin=shop_name_pinyin,
-            shop_name_initial=shop_name_initial,
-            business_model=data.get('business_model'),
-            phone=data.get('phone'),
-            region=region,
-            province=province,
-            city=city,
-            district=district,
-            address=detail,
-            address_pinyin=address_pinyin,
-            address_initial=address_initial,
-            remark=data.get('remark', '')
-        )
-        db.session.add(shop)
-        db.session.commit()
-        
-        # 记录日志
-        add_log('shop', '添加店铺', f'店铺名称: {shop.shop_name}', 'success')
-        
-        return jsonify({'code': 0, 'msg': '添加成功', 'data': shop.to_dict()})
-    except Exception as e:
-        db.session.rollback()
-        add_log('shop', '添加店铺', f'店铺名称: {data.get("shop_name")}', 'fail')
-        return jsonify({'code': 1, 'msg': f'添加失败: {str(e)}'})
+    # 记录操作日志
+    add_log('shop', '添加店铺', f'店铺名称: {shop_name}', 'success')
+    
+    return jsonify({'code': 0, 'msg': '添加成功', 'data': {'id': shop.id}})
 
-# 获取单个店铺详情
-@shop_bp.route('/api/get/<int:id>')
-@check_permission('shop_view')
-def api_get(id):
-    shop = Shop.query.get(id)
-    if not shop:
-        return jsonify({'code': 1, 'msg': '店铺不存在'})
-    return jsonify({'code': 0, 'data': shop.to_dict()})
 
-# 编辑店铺
 @shop_bp.route('/api/edit/<int:id>', methods=['POST'])
 @check_permission('shop_edit')
-def api_edit(id):
-    data = request.json
+def api_edit(id: int) -> Dict[str, Any]:
+    """
+    编辑店铺 API
+    
+    Args:
+        id: 店铺ID
+    
+    Request JSON:
+        shop_name: 店铺名称
+        phone: 电话
+        address: 地址
+        province/city/district: 省市区
+        business_model: 经营模式
+        free_shipping: 是否包邮
+        remark: 备注
+    
+    Returns:
+        JSON 编辑结果
+    """
     shop = Shop.query.get(id)
     if not shop:
         return jsonify({'code': 1, 'msg': '店铺不存在'})
     
-    # 检查店铺名称是否重复（排除自己）
-    new_name = data.get('shop_name')
+    data = request.json
+    new_name = data.get('shop_name', '').strip()
+    
+    if not new_name:
+        return jsonify({'code': 1, 'msg': '店铺名称不能为空'})
+    
+    # 检查名称是否重复
     existing = Shop.query.filter(Shop.shop_name == new_name, Shop.id != id).first()
     if existing:
         return jsonify({'code': 1, 'msg': '店铺名称已存在'})
     
-    # 使用前端解析好的地址信息
-    region = data.get('region', '')
+    # 地址重复检查
+    address = data.get('address', '')
     province = data.get('province', '')
     city = data.get('city', '')
     district = data.get('district', '')
-    detail = data.get('detail', '')
-    address = data.get('address', '')
     
-    # 如果地址不为空，检查地址是否重复（使用解析后的字段）
-    if address and address.strip():
-        if not region or not province or not city or not district or not detail:
-            return jsonify({'code': 1, 'msg': '地址信息不完整，请检查大区、省、市、区县、详细地址'})
-        
-        # 检查地址是否重复（排除自己）
+    if address and province and city and district:
         existing_addr = Shop.query.filter(
-            Shop.region == region,
             Shop.province == province,
             Shop.city == city,
             Shop.district == district,
-            Shop.address == detail,
-            Shop.id != id
+            Shop.address == address,
+            Shop.id != id,
+            Shop.status == 1
         ).first()
         if existing_addr:
             return jsonify({'code': 1, 'msg': '该地址已存在'})
     
-    # 生成店铺名称拼音
-    shop_name_pinyin = get_pinyin(data.get('shop_name', ''))
-    shop_name_initial = get_pinyin_initial(data.get('shop_name', ''))
+    # 更新店铺信息
+    old_name = shop.shop_name
+    shop.shop_name = new_name
+    shop.shop_name_pinyin = get_pinyin(new_name) if new_name else ''
+    shop.shop_name_initial = get_pinyin_initial(new_name) if new_name else ''
+    shop.phone = data.get('phone', '')
+    shop.province = province
+    shop.city = city
+    shop.district = district
+    shop.address = address
+    shop.address_pinyin = get_pinyin(address) if address else ''
+    shop.address_initial = get_pinyin_initial(address) if address else ''
+    shop.business_model = data.get('business_model', '')
+    shop.free_shipping = data.get('free_shipping', 0)
+    shop.remark = data.get('remark', '')
     
-    # 生成地址拼音
-    full_addr = region + province + city + district + (detail or '')
-    address_pinyin = get_pinyin(full_addr)
-    address_initial = get_pinyin_initial(full_addr)
+    db.session.commit()
     
-    try:
-        shop.shop_name = data.get('shop_name', shop.shop_name)
-        shop.shop_name_pinyin = shop_name_pinyin
-        shop.shop_name_initial = shop_name_initial
-        shop.business_model = data.get('business_model', shop.business_model)
-        shop.phone = data.get('phone', shop.phone)
-        shop.region = region
-        shop.province = province
-        shop.city = city
-        shop.district = district
-        shop.address = detail
-        shop.address_pinyin = address_pinyin
-        shop.address_initial = address_initial
-        shop.remark = data.get('remark', shop.remark)
-        db.session.commit()
-        
-        # 记录日志
-        add_log('shop', '编辑店铺', f'店铺名称: {shop.shop_name}', 'success')
-        
-        return jsonify({'code': 0, 'msg': '修改成功', 'data': shop.to_dict()})
-    except Exception as e:
-        db.session.rollback()
-        add_log('shop', '编辑店铺', f'店铺ID: {id}', 'fail')
-        return jsonify({'code': 1, 'msg': f'修改失败: {str(e)}'})
+    # 记录操作日志
+    add_log('shop', '编辑店铺', f'店铺: {old_name} -> {new_name}', 'success')
+    
+    return jsonify({'code': 0, 'msg': '修改成功'})
 
-# 停用/启用店铺
-@shop_bp.route('/api/toggle_status/<int:id>', methods=['POST'])
-@check_permission('shop_edit')
-def api_toggle_status(id):
-    shop = Shop.query.get(id)
-    if not shop:
-        return jsonify({'code': 1, 'msg': '店铺不存在'})
-    
-    try:
-        shop.status = 0 if shop.status == 1 else 1
-        status_text = '停用' if shop.status == 0 else '启用'
-        db.session.commit()
-        
-        # 记录日志
-        add_log('shop', f'{status_text}店铺', f'店铺名称: {shop.shop_name}', 'success')
-        
-        return jsonify({'code': 0, 'msg': '操作成功', 'data': shop.to_dict()})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'code': 1, 'msg': f'操作失败: {str(e)}'})
 
-# 删除店铺
 @shop_bp.route('/api/delete/<int:id>', methods=['POST'])
 @check_permission('shop_delete')
-def api_delete(id):
+def api_delete(id: int) -> Dict[str, Any]:
+    """
+    删除（停用）店铺 API
+    
+    Args:
+        id: 店铺ID
+    
+    Returns:
+        JSON 删除结果
+    """
     shop = Shop.query.get(id)
     if not shop:
         return jsonify({'code': 1, 'msg': '店铺不存在'})
     
-    try:
-        db.session.delete(shop)
-        db.session.commit()
-        
-        # 记录日志
-        add_log('shop', '删除店铺', f'店铺名称: {shop.shop_name}', 'success')
-        
-        return jsonify({'code': 0, 'msg': '删除成功'})
-    except Exception as e:
-        db.session.rollback()
-        add_log('shop', '删除店铺', f'店铺ID: {id}', 'fail')
-        return jsonify({'code': 1, 'msg': f'删除失败: {str(e)}'})
+    # 软删除（停用）
+    shop.status = 0
+    db.session.commit()
+    
+    # 记录操作日志
+    add_log('shop', '删除店铺', f'店铺名称: {shop.shop_name}', 'success')
+    
+    return jsonify({'code': 0, 'msg': '删除成功'})
 
-# 检查店铺名称API
-@shop_bp.route('/api/check_name', methods=['POST'])
+
+@shop_bp.route('/api/restore/<int:id>', methods=['POST'])
+@check_permission('shop_edit')
+def api_restore(id: int) -> Dict[str, Any]:
+    """
+    恢复已删除（停用）的店铺 API
+    
+    Args:
+        id: 店铺ID
+    
+    Returns:
+        JSON 恢复结果
+    """
+    shop = Shop.query.get(id)
+    if not shop:
+        return jsonify({'code': 1, 'msg': '店铺不存在'})
+    
+    # 恢复
+    shop.status = 1
+    db.session.commit()
+    
+    # 记录操作日志
+    add_log('shop', '恢复店铺', f'店铺名称: {shop.shop_name}', 'success')
+    
+    return jsonify({'code': 0, 'msg': '恢复成功'})
+
+
+@shop_bp.route('/api/check_name', methods=['GET', 'POST'])
 @check_permission('shop_view')
-def api_check_name():
-    """检查店铺名称是否重复"""
-    data = request.json
-    name = data.get('name', '').strip()
-    shop_id = data.get('id', '')
+def api_check_name() -> Dict[str, Any]:
+    """
+    检查店铺名称是否已存在
+    
+    Query Parameters (GET) / Request JSON (POST):
+        name: 店铺名称
+        shop_id: 排除的店铺ID（编辑时使用）
+    
+    Returns:
+        JSON 检查结果
+    """
+    # 支持 GET 和 POST 两种方式
+    if request.method == 'POST':
+        data = request.json or {}
+        name = data.get('name', '').strip()
+        shop_id = data.get('shop_id', '').strip()
+    else:
+        name = request.args.get('name', '').strip()
+        shop_id = request.args.get('shop_id', '').strip()
     
     if not name:
-        return jsonify({'code': 0, 'msg': 'success'})
+        return jsonify({'code': 0, 'exists': False})
     
-    # 查询是否重名
-    query = Shop.query.filter_by(shop_name=name, status=1)
     if shop_id:
-        query = query.filter(Shop.id != int(shop_id))
+        exists = Shop.query.filter(Shop.shop_name == name, Shop.id != int(shop_id), Shop.status == 1).first()
+    else:
+        exists = Shop.query.filter_by(shop_name=name, status=1).first()
     
-    exists = query.first()
-    
-    if exists:
-        return jsonify({'code': 1, 'msg': '店铺名称已存在'})
-    
-    return jsonify({'code': 0, 'msg': 'success'})
+    return jsonify({'code': 0, 'exists': bool(exists)})
 
-# 地址解析API
-@shop_bp.route('/api/parse_address', methods=['POST'])
-@check_permission('shop_add')
-def api_parse_address():
-    """智能解析地址（使用快宝API）"""
-    data = request.json
-    address = data.get('address', '')
+
+@shop_bp.route('/api/business_models')
+@check_permission('shop_view')
+def api_business_models() -> Dict[str, Any]:
+    """
+    获取所有经营模式
     
-    if not address:
-        return jsonify({'code': 1, 'msg': '请输入地址'})
-    
-    # 调用快宝API解析
-    result = clear_address(address)
-    
-    if 'error' in result:
-        return jsonify({'code': 1, 'msg': result['error']})
+    Returns:
+        JSON 经营模式列表
+    """
+    models = db.session.query(Shop.business_model).filter(
+        Shop.business_model != '',
+        Shop.business_model is not None,
+        Shop.status == 1
+    ).distinct().all()
     
     return jsonify({
         'code': 0,
-        'msg': 'success',
-        'data': {
-            'region': result.get('region', ''),
-            'province': result.get('province', ''),
-            'city': result.get('city', ''),
-            'district': result.get('district', ''),
-            'town': result.get('town', ''),
-            'detail': result.get('detail', '')
-        }
+        'data': [m[0] for m in models if m[0]]
     })

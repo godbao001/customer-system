@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 from utils.log import add_log
+from config import Config
 import random
 import string
 import json
