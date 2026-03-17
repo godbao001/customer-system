@@ -14,7 +14,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # 安全配置
-    SECRET_KEY = os.getenv('SECRET_KEY') or os.urandom(24)
+    # 生产环境请使用环境变量设置固定的 SECRET_KEY
+    # 示例: export SECRET_KEY="your-32-byte-random-string-here"
+    SECRET_KEY = os.getenv('SECRET_KEY') or 'cs-app-secret-key-change-in-production-2024'
     
     # Session 配置 - 防止 Session 固定攻击
     SESSION_COOKIE_SECURE = os.getenv('HTTPS', '').lower() == 'true'  # 仅 HTTPS 传输
@@ -23,7 +25,7 @@ class Config:
     SESSION_REGENERATE = True  # 登录后重新生成 Session ID
     
     # CSRF 配置
-    WTF_CSRF_ENABLED = False  # 临时禁用调试
+    WTF_CSRF_ENABLED = False  # 临时禁用（前端 AJAX 需要适配）
     WTF_CSRF_TIME_LIMIT = 3600  # CSRF token 有效期（秒）
     
     # 登录安全配置

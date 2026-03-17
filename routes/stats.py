@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, jsonify, session
 from models import db, Shop, Order, Product
 from sqlalchemy import func
 from datetime import datetime, timedelta
+from utils.decorators import handle_errors
 
 stats_bp = Blueprint('stats', __name__, url_prefix='/stats')
 
@@ -34,6 +35,7 @@ def revenue():
 
 @stats_bp.route('/api/shop/summary')
 @check_permission('stats_view')
+@handle_errors
 def api_shop_summary():
     """获取店铺统计摘要"""
     # 店铺总数
@@ -53,6 +55,7 @@ def api_shop_summary():
 
 @stats_bp.route('/api/shop/by_province')
 @check_permission('stats_view')
+@handle_errors
 def api_shop_by_province():
     """获取按省份统计的店铺数量"""
     shops = Shop.query.filter(Shop.province.isnot(None), Shop.province != '').all()
@@ -73,6 +76,7 @@ def api_shop_by_province():
 
 @stats_bp.route('/api/shop/by_city')
 @check_permission('stats_view')
+@handle_errors
 def api_shop_by_city():
     """获取按城市统计的店铺数量"""
     shops = Shop.query.filter(Shop.city.isnot(None), Shop.city != '').all()
@@ -93,6 +97,7 @@ def api_shop_by_city():
 
 @stats_bp.route('/api/order/summary')
 @check_permission('stats_view')
+@handle_errors
 def api_order_summary():
     """获取订单统计摘要"""
     from datetime import timedelta
@@ -134,13 +139,14 @@ def api_order_summary():
 
 @stats_bp.route('/api/order/monthly')
 @check_permission('stats_view')
+@handle_errors
 def api_order_monthly():
-    """获取月度订单统计数据（过去30个月）"""
+    """获取月度订单统计数据（过去12个月）"""
     from dateutil.relativedelta import relativedelta
     now = datetime.now()
     monthly_data = []
     
-    for i in range(29, -1, -1):
+    for i in range(11, -1, -1):
         target_date = now - relativedelta(months=i)
         year = target_date.year
         month = target_date.month
@@ -217,6 +223,7 @@ def api_order_monthly():
 
 @stats_bp.route('/api/order/yearly')
 @check_permission('stats_view')
+@handle_errors
 def api_order_yearly():
     """获取年度订单统计数据（过去8年）"""
     now = datetime.now()
@@ -265,6 +272,7 @@ def api_order_yearly():
 
 @stats_bp.route('/api/revenue/summary')
 @check_permission('stats_view')
+@handle_errors
 def api_revenue_summary():
     """获取营业额统计摘要（基于付款时间，状态>=2的订单即付款未制作以上都算入营业额）"""
     
@@ -311,13 +319,14 @@ def api_revenue_summary():
 
 @stats_bp.route('/api/revenue/monthly')
 @check_permission('stats_view')
+@handle_errors
 def api_revenue_monthly():
-    """获取月度营业额统计数据（过去30个月，基于付款时间）"""
+    """获取月度营业额统计数据（过去12个月，基于付款时间）"""
     from dateutil.relativedelta import relativedelta
     now = datetime.now()
     monthly_data = []
     
-    for i in range(29, -1, -1):
+    for i in range(11, -1, -1):
         # 计算该月的起始和结束日期
         target_date = now - relativedelta(months=i)
         year = target_date.year
@@ -398,6 +407,7 @@ def api_revenue_monthly():
 
 @stats_bp.route('/api/revenue/yearly')
 @check_permission('stats_view')
+@handle_errors
 def api_revenue_yearly():
     """获取年度营业额统计数据（过去8年）"""
     now = datetime.now()

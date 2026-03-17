@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from models import db, Product, ProductCategory, CategoryGroup, ProductCategoryValue, get_pinyin, get_pinyin_initial
 from sqlalchemy import or_
 from utils.log import add_log
+from utils.decorators import handle_errors
 import json
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
@@ -19,6 +20,7 @@ def group_list():
 # 获取分类组列表API
 @product_bp.route('/api/group/list')
 @check_permission('product_view')
+@handle_errors
 def api_group_list():
     groups = CategoryGroup.query.filter_by(status=1).order_by(CategoryGroup.sort_order, CategoryGroup.id).all()
     return jsonify({
@@ -30,6 +32,7 @@ def api_group_list():
 # 添加分类组
 @product_bp.route('/api/group/add', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_group_add():
     data = request.json
     existing = CategoryGroup.query.filter_by(group_name=data.get('group_name')).first()
@@ -51,6 +54,7 @@ def api_group_add():
 # 编辑分类组
 @product_bp.route('/api/group/edit/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_group_edit(id):
     data = request.json
     group = CategoryGroup.query.get(id)
@@ -69,6 +73,7 @@ def api_group_edit(id):
 # 删除分类组
 @product_bp.route('/api/group/delete/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_group_delete(id):
     group = CategoryGroup.query.get(id)
     if not group:
@@ -99,6 +104,7 @@ def category_list():
 # 获取分类列表API
 @product_bp.route('/api/category/list')
 @check_permission('product_view')
+@handle_errors
 def api_category_list():
     status = request.args.get('status', 1, type=int)
     categories = ProductCategory.query.filter_by(status=status).order_by(ProductCategory.group_id, ProductCategory.sort_order, ProductCategory.id).all()
@@ -121,6 +127,7 @@ def api_category_list():
 # 获取分类组和分类树API
 @product_bp.route('/api/category/tree')
 @check_permission('product_view')
+@handle_errors
 def api_category_tree():
     # 获取所有启用的分类组
     groups = CategoryGroup.query.filter_by(status=1).order_by(CategoryGroup.sort_order, CategoryGroup.id).all()
@@ -144,6 +151,7 @@ def api_category_tree():
 # 添加分类
 @product_bp.route('/api/category/add', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_category_add():
     data = request.json
     
@@ -176,6 +184,7 @@ def api_category_add():
 # 编辑分类
 @product_bp.route('/api/category/edit/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_category_edit(id):
     data = request.json
     category = ProductCategory.query.get(id)
@@ -212,6 +221,7 @@ def api_category_edit(id):
 # 删除分类
 @product_bp.route('/api/category/delete/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_category_delete(id):
     category = ProductCategory.query.get(id)
     if not category:
@@ -248,6 +258,7 @@ def disabled():
 # 获取产品列表API
 @product_bp.route('/api/list')
 @check_permission('product_view')
+@handle_errors
 def api_list():
     status = request.args.get('status', 1, type=int)
     sales_status = request.args.get('sales_status', type=int)
@@ -301,6 +312,7 @@ def api_list():
 # 添加产品
 @product_bp.route('/api/add', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_add():
     data = request.json
     
@@ -355,6 +367,7 @@ def api_add():
 # 编辑产品
 @product_bp.route('/api/edit/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_edit(id):
     data = request.json
     product = Product.query.get(id)
@@ -411,6 +424,7 @@ def api_edit(id):
 # 停用/启用产品
 @product_bp.route('/api/toggle_status/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_toggle_status(id):
     product = Product.query.get(id)
     if not product:
@@ -432,6 +446,7 @@ def api_toggle_status(id):
 # 切换销售状态
 @product_bp.route('/api/toggle_sales_status/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_toggle_sales_status(id):
     product = Product.query.get(id)
     if not product:
@@ -453,6 +468,7 @@ def api_toggle_sales_status(id):
 # 切换包邮状态
 @product_bp.route('/api/toggle_free_shipping/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_toggle_free_shipping(id):
     product = Product.query.get(id)
     if not product:
@@ -474,6 +490,7 @@ def api_toggle_free_shipping(id):
 # 删除产品
 @product_bp.route('/api/delete/<int:id>', methods=['POST'])
 @check_permission('product_edit')
+@handle_errors
 def api_delete(id):
     product = Product.query.get(id)
     if not product:

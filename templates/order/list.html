@@ -169,7 +169,7 @@ function renderTable(data) {
                 <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); viewDetail(${item.id})">
                     <i class="bi bi-eye"></i>
                 </button>
-                ${next ? `<button class="btn btn-sm btn-outline-success me-1" onclick="event.stopPropagation(); updateStatus(${item.id}, ${next.status}, '${next.text}')">
+                ${next && item.status <= 2 ? `<button class="btn btn-sm btn-outline-success me-1" onclick="event.stopPropagation(); updateStatus(${item.id}, ${next.status}, '${next.text}')">
                     <i class="bi bi-arrow-right-circle"></i> ${next.text}
                 </button>` : ''}
                 ${item.status <= 2 ? `<button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteOrder(${item.id})">
@@ -241,7 +241,7 @@ function updateStatus(id, status, text) {
                     loadData(currentPage);
                     swalSuccess('状态更新成功');
                 } else {
-                    swalError(res.msg);
+                    swalError(res.msg || '操作失败');
                 }
             }
         });

@@ -6,12 +6,14 @@
 """
 from typing import Optional, Dict, List, Any
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+
 from permissions import check_permission, ALL_PERMISSIONS
 from models import db, Shop, Order, get_pinyin, get_pinyin_initial
 from sqlalchemy import or_, func
 from utils.address_parser import parse_address
 from utils.kuaibao_parser import clear_address
 from utils.log import add_log
+from utils.decorators import handle_errors
 from config import Config
 import json
 
@@ -44,6 +46,7 @@ def disabled() -> str:
 
 @shop_bp.route('/api/list')
 @check_permission('shop_view')
+@handle_errors
 def api_list() -> Dict[str, Any]:
     """
     获取店铺列表 API
@@ -135,8 +138,33 @@ def api_list() -> Dict[str, Any]:
     })
 
 
+
+@shop_bp.route('/api/get/<int:id>')
+@check_permission('shop_view')
+@handle_errors
+def api_get(id: int) -> Dict[str, Any]:
+    """
+    获取单个店铺详情
+    
+    Args:
+        id: 店铺ID
+    
+    Returns:
+        JSON 店铺详情
+    """
+    shop = Shop.query.get(id)
+    if not shop:
+        return jsonify({'code': 1, 'msg': '店铺不存在'})
+    
+    return jsonify({
+        'code': 0,
+        'msg': 'success',
+        'data': shop.to_dict()
+    })
+
 @shop_bp.route('/api/add', methods=['POST'])
 @check_permission('shop_add')
+@handle_errors
 def api_add() -> Dict[str, Any]:
     """
     添加店铺 API
@@ -223,6 +251,7 @@ def api_add() -> Dict[str, Any]:
 
 @shop_bp.route('/api/edit/<int:id>', methods=['POST'])
 @check_permission('shop_edit')
+@handle_errors
 def api_edit(id: int) -> Dict[str, Any]:
     """
     编辑店铺 API
@@ -301,6 +330,7 @@ def api_edit(id: int) -> Dict[str, Any]:
 
 @shop_bp.route('/api/delete/<int:id>', methods=['POST'])
 @check_permission('shop_delete')
+@handle_errors
 def api_delete(id: int) -> Dict[str, Any]:
     """
     删除（停用）店铺 API
@@ -327,6 +357,7 @@ def api_delete(id: int) -> Dict[str, Any]:
 
 @shop_bp.route('/api/restore/<int:id>', methods=['POST'])
 @check_permission('shop_edit')
+@handle_errors
 def api_restore(id: int) -> Dict[str, Any]:
     """
     恢复已删除（停用）的店铺 API
@@ -353,6 +384,7 @@ def api_restore(id: int) -> Dict[str, Any]:
 
 @shop_bp.route('/api/check_name', methods=['GET', 'POST'])
 @check_permission('shop_view')
+@handle_errors
 def api_check_name() -> Dict[str, Any]:
     """
     检查店铺名称是否已存在
@@ -386,6 +418,7 @@ def api_check_name() -> Dict[str, Any]:
 
 @shop_bp.route('/api/business_models')
 @check_permission('shop_view')
+@handle_errors
 def api_business_models() -> Dict[str, Any]:
     """
     获取所有经营模式
@@ -403,3 +436,34 @@ def api_business_models() -> Dict[str, Any]:
         'code': 0,
         'data': [m[0] for m in models if m[0]]
     })
+
+
+@check_permission('shop_edit')
+@shop_bp.route('/api/toggle_status/<int:id>', methods=['POST'])
+@handle_errors
+def api_toggle_status(id: int) -> Dict[str, Any]:
+    """
+    启用/停用客户
+    
+    Args:
+        id: 客户ID
+    
+    Returns:
+        JSON 操作结果
+    """
+    shop = Shop.query.get(id)
+    if not shop:
+        return jsonify({'code': 1, 'msg': '客户不存在'})
+    
+    # 切换状态
+    new_status = 0 if shop.status == 1 else 1
+    shop.status = new_status
+    
+    db.session.commit()
+    
+    # 记录日志
+    action = '启用客户' if new_status == 1 else '停用客户'
+    add_log('shop', action, f'客户ID: {id}, 名称: {shop.shop_name}')
+    
+    status_text = '启用' if new_status == 1 else '停用'
+    return jsonify({'code': 0, 'msg': f'{status_text}成功'})

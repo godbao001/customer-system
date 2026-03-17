@@ -15,6 +15,8 @@ ALL_PERMISSIONS = {
     'order_delete': '删除订单',
     'product_view': '查看产品',
     'product_edit': '编辑产品',
+    'biz_generate': '生成制作',
+    'biz_force_edit': '强制修改',
     'system_basic': '系统设置',
     'system_field': '字段管理',
     'system_log': '日志管理',

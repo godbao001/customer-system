@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, Role
 from utils.log import log_login, log_logout, add_log
+from utils.decorators import handle_errors
 from config import Config
 import json
 import time
@@ -105,6 +106,7 @@ def login():
 
 # 登录API
 @auth_bp.route('/api/login', methods=['POST'])
+@handle_errors
 def api_login():
     data = request.json
     username = data.get('username', '').strip()
@@ -202,6 +204,7 @@ def register():
 
 # 注册API
 @auth_bp.route('/api/register', methods=['POST'])
+@handle_errors
 def api_register():
     data = request.json
     name = data.get('name', '').strip()

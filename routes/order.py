@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 from utils.log import add_log
+from utils.decorators import handle_errors
 from config import Config
 import random
 import string
@@ -36,6 +37,7 @@ def list_by_status(status):
 # 获取订单列表API
 @order_bp.route('/api/list')
 @check_permission('order_view')
+@handle_errors
 def api_list():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 12, type=int)
@@ -73,6 +75,7 @@ def api_list():
 
 @order_bp.route('/api/deleted')
 @check_permission('order_view')
+@handle_errors
 def api_deleted():
     """获取已删除的订单列表"""
     page = request.args.get('page', 1, type=int)
@@ -102,6 +105,7 @@ def api_deleted():
 # 获取所有店铺（下拉用）
 @order_bp.route('/api/shops')
 @check_permission('order_view')
+@handle_errors
 def api_shops():
     shops = Shop.query.filter_by(status=1).order_by(Shop.id.desc()).all()
     return jsonify({
@@ -112,6 +116,7 @@ def api_shops():
 # 获取店铺的产品（下单用）
 @order_bp.route('/api/shop/products/<int:shop_id>')
 @check_permission('order_view')
+@handle_errors
 def api_shop_products(shop_id):
     # 这里应该查店铺的产品，暂时返回空列表
     return jsonify({
@@ -122,6 +127,7 @@ def api_shop_products(shop_id):
 # 获取店铺的订单
 @order_bp.route('/api/shop/orders/<int:shop_id>')
 @check_permission('order_view')
+@handle_errors
 def api_shop_orders(shop_id):
     orders = Order.query.filter_by(shop_id=shop_id).order_by(Order.id.desc()).all()
     return jsonify({
@@ -132,6 +138,7 @@ def api_shop_orders(shop_id):
 # 获取订单明细
 @order_bp.route('/api/items/<int:order_id>')
 @check_permission('order_view')
+@handle_errors
 def api_items(order_id):
     items = OrderItem.query.filter_by(order_id=order_id).all()
     return jsonify({
@@ -142,6 +149,7 @@ def api_items(order_id):
 # 更新订单（完整更新）
 @order_bp.route('/api/update/<int:id>', methods=['POST'])
 @check_permission('order_edit')
+@handle_errors
 def api_update(id):
     data = request.json
     order = Order.query.get(id)
@@ -187,6 +195,7 @@ def api_update(id):
 # 创建订单
 @order_bp.route('/api/add', methods=['POST'])
 @check_permission('order_edit')
+@handle_errors
 def api_add():
     data = request.json
     
@@ -258,6 +267,7 @@ def api_add():
 # 更新订单状态
 @order_bp.route('/api/update_status/<int:id>', methods=['POST'])
 @check_permission('order_edit')
+@handle_errors
 def api_update_status(id):
     data = request.json
     order = Order.query.get(id)
@@ -281,6 +291,14 @@ def api_update_status(id):
         
         if new_status not in allowed_transitions.get(order.status, []):
             return jsonify({'code': 1, 'msg': '不能将状态从 {} 改为 {}'.format(order.status, new_status)})
+        
+        # 确认付款时（状态2 -> 3），检查店铺是否有地址和电话
+        if new_status == 3 and order.status == 2:
+            shop = Shop.query.get(order.shop_id)
+            if not shop:
+                return jsonify({'code': 1, 'msg': '店铺不存在'})
+            if not shop.address or not shop.phone:
+                return jsonify({'code': 1, 'msg': '缺少地址或电话，无法确认付款'})
         
         # 保存原来的状态
         old_status = order.status
@@ -319,6 +337,7 @@ def api_update_status(id):
 # 编辑订单
 @order_bp.route('/api/edit/<int:id>', methods=['POST'])
 @check_permission('order_edit')
+@handle_errors
 def api_edit(id):
     data = request.json
     order = Order.query.get(id)
@@ -347,6 +366,7 @@ def api_edit(id):
 # 删除订单
 @order_bp.route('/api/delete/<int:id>', methods=['POST'])
 @check_permission('order_delete')
+@handle_errors
 def api_delete(id):
     """软删除订单"""
     order = Order.query.get(id)

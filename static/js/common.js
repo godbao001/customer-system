@@ -267,33 +267,6 @@ function throttle(func, limit) {
     };
 }
 
-/**
- * 主题切换功能
- */
-function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-    
-    // 更新按钮状态
-    const lightBtn = document.getElementById('themeLight');
-    const darkBtn = document.getElementById('themeDark');
-    if (lightBtn && darkBtn) {
-        lightBtn.classList.toggle('active', theme === 'light');
-        darkBtn.classList.toggle('active', theme === 'dark');
-    }
-}
-
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    setTheme(currentTheme === 'light' ? 'dark' : 'light');
-}
-
-// 初始化主题
-document.addEventListener('DOMContentLoaded', function() {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-});
-
 // 导出到全局
 window.renderPaginationHTML = renderPaginationHTML;
 window.createPagination = createPagination;
@@ -308,5 +281,3 @@ window.resetForm = resetForm;
 window.getFormData = getFormData;
 window.debounce = debounce;
 window.throttle = throttle;
-window.setTheme = setTheme;
-window.toggleTheme = toggleTheme;

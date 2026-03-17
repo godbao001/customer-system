@@ -4,6 +4,7 @@ from permissions import check_permission, ALL_PERMISSIONS
 from flask import Blueprint, render_template, request, jsonify, send_from_directory, session, redirect
 from models import db, SystemConfig, FieldConfig, OperationLog
 from utils.log import add_log
+from utils.decorators import handle_errors
 import os
 import uuid
 import json
@@ -28,6 +29,7 @@ def basic():
 
 @system_bp.route('/api/basic/get')
 @check_permission('system_basic')
+@handle_errors
 def api_basic_get():
     """获取系统基础配置"""
     configs = SystemConfig.query.all()
@@ -39,6 +41,7 @@ def api_basic_get():
 
 @system_bp.route('/api/basic/save', methods=['POST'])
 @check_permission('system_basic')
+@handle_errors
 def api_basic_save():
     """保存系统基础配置"""
     data = request.json
@@ -71,6 +74,7 @@ def api_basic_save():
 
 @system_bp.route('/api/upload', methods=['POST'])
 @check_permission('system_basic')
+@handle_errors
 def api_upload():
     """上传文件"""
     if 'file' not in request.files:
@@ -113,6 +117,7 @@ def field():
 
 @system_bp.route('/api/field/list')
 @check_permission('system_field')
+@handle_errors
 def api_field_list():
     """获取字段配置列表"""
     field_type = request.args.get('field_type', '')
@@ -127,6 +132,7 @@ def api_field_list():
 
 @system_bp.route('/api/field/save', methods=['POST'])
 @check_permission('system_field')
+@handle_errors
 def api_field_save():
     """保存字段配置"""
     data = request.json
@@ -191,6 +197,7 @@ def api_field_delete(id):
 
 @system_bp.route('/api/field/options')
 @check_permission('system_field')
+@handle_errors
 def api_field_options():
     """获取字段选项（用于下拉选择）"""
     field_type = request.args.get('field_type')
@@ -209,6 +216,7 @@ def log():
 
 @system_bp.route('/api/log/list')
 @check_permission('system_log')
+@handle_errors
 def api_log_list():
     """获取日志列表"""
     category = request.args.get('category', '')
@@ -267,6 +275,7 @@ def api_log_list():
 
 @system_bp.route('/api/log/categories')
 @check_permission('system_log')
+@handle_errors
 def api_log_categories():
     """获取日志分类统计"""
     date = request.args.get('date', '')

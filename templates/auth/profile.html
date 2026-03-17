@@ -2,29 +2,109 @@
 
 {% block title %}个人中心 - 客户管理系统{% endblock %}
 
+{% block extra_css %}
+<style>
+    .profile-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .profile-info-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .profile-info-card .card-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #eee;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 15px 20px;
+    }
+    .profile-info-card .card-body {
+        padding: 20px;
+    }
+    .info-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    .info-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    .info-value {
+        color: #2c3e50;
+        font-weight: 600;
+    }
+    @media (max-width: 768px) {
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-header">
     <h4><i class="bi bi-person-circle me-2"></i>个人中心</h4>
 </div>
 
-<div class="table-card">
+<div class="table-card profile-container">
     <div class="row">
-        <div class="col-md-4 text-center">
-            <div class="card">
+        <!-- 左侧：账号信息 + 头像 -->
+        <div class="col-md-5 mb-4">
+            <!-- 账号信息 -->
+            <div class="card profile-info-card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person-badge me-2"></i>账号信息</h5>
+                </div>
                 <div class="card-body">
-                    <div class="avatar-container mb-3">
-                        <img id="avatarPreview" src="{{ url_for('static', filename='images/default-avatar.png') }}" 
-                             alt="头像" class="rounded-circle" style="width: 150px; height: 150px; object-fit: cover;">
+                    <div class="info-item d-flex justify-content-between">
+                        <span class="info-label">用户名</span>
+                        <span class="info-value" id="userUsername"></span>
                     </div>
-                    <input type="file" id="avatarInput" accept="image/*" style="display: none;">
-                    <button class="btn btn-outline-primary" onclick="document.getElementById('avatarInput').click()">
-                        <i class="bi bi-camera me-1"></i>更换头像
-                    </button>
+                    <div class="info-item d-flex justify-content-between">
+                        <span class="info-label">姓名</span>
+                        <span class="info-value" id="userName2"></span>
+                    </div>
+                    <div class="info-item d-flex justify-content-between">
+                        <span class="info-label">角色</span>
+                        <span class="info-value" id="userRoles2"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 修改头像 -->
+            <div class="card profile-info-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-camera me-2"></i>修改头像</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="position-relative d-inline-block mb-3">
+                        <img id="avatarPreview" src="{{ url_for('static', filename='images/default-avatar.png') }}" 
+                             alt="头像" class="profile-avatar">
+                        <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                        <button class="btn btn-primary btn-sm position-absolute bottom-0 end-0 rounded-circle" 
+                                onclick="document.getElementById('avatarInput').click()" title="更换头像">
+                            <i class="bi bi-camera"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-8">
-            <div class="card mb-3">
+        
+        <!-- 右侧：修改密码 -->
+        <div class="col-md-7 mb-4">
+            <div class="card profile-info-card h-100">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="bi bi-key me-2"></i>修改密码</h5>
                 </div>
@@ -32,30 +112,20 @@
                     <form id="passwordForm">
                         <div class="mb-3">
                             <label class="form-label">当前密码</label>
-                            <input type="password" class="form-control" id="oldPassword" required>
+                            <input type="password" class="form-control" id="oldPassword" placeholder="请输入当前密码" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">新密码</label>
-                            <input type="password" class="form-control" id="newPassword" required>
+                            <input type="password" class="form-control" id="newPassword" placeholder="请输入新密码（至少6位）" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">确认新密码</label>
-                            <input type="password" class="form-control" id="confirmPassword" required>
+                            <input type="password" class="form-control" id="confirmPassword" placeholder="请再次输入新密码" required>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg me-1"></i>确认修改
                         </button>
                     </form>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>账号信息</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>姓名：</strong><span id="userName"></span></p>
-                    <p><strong>用户名：</strong><span id="userUsername"></span></p>
-                    <p><strong>角色：</strong><span id="userRoles"></span></p>
                 </div>
             </div>
         </div>
@@ -69,9 +139,13 @@ $(document).ready(function() {
     // 加载用户信息
     $.get('/api/auth_status', function(res) {
         if (res.code === 0 && res.logged_in) {
-            $('#userName').text(res.name || '-');
-            $('#userUsername').text(res.username || '-');
-            $('#userRoles').text(res.role_names || '-');
+            var name = res.name || '-';
+            var username = res.username || '-';
+            var roles = res.role_names || '-';
+            
+            $('#userName2').text(name);
+            $('#userUsername').text(username);
+            $('#userRoles2').text(roles);
             
             // 显示头像
             if (res.avatar) {

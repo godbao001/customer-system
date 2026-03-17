@@ -213,8 +213,22 @@
 const orderId = {{ order.id }};
 const shopId = {{ order.shop_id }};
 
-// 安全转义 HTML
-function h(s) { s=String(s||''); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// 转义HTML/JS字符串 - 处理引号和特殊字符
+function h(str) { 
+    str = String(str||'');
+    // 先转义 HTML 特殊字符
+    str = str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // 转义用于 HTML 属性值的引号
+    str = str.replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
+    return str;
+}
+
+// 转义用于 JS 字符串的值
+function j(str) {
+    str = String(str||'');
+    // 转义反斜杠、换行、引号
+    return str.replace(/\\/g,'\\\\').replace(/\"/g,'\\\"').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'');
+}
 
 $(function() {
     var urlParams = new URLSearchParams(window.location.search);
@@ -287,14 +301,13 @@ function deleteOrder() {
             url: '/order/api/delete/' + orderId,
             type: 'POST',
             success: function(res) {
-                if (res.code === 0) {
-                    swalWarning('删除成功');
-                    window.location.href = '/order/';
-                } else {
-                    swalWarning(res.msg);
-                }
+            if (res.code === 0) {
+                swalWarning('删除成功');
+                window.location.href = '/order/';
+            } else {
+                swalWarning(res.msg);
             }
-        });
+        }
     });
 }
 </script>
@@ -488,7 +501,7 @@ function editLoadOrderItems() {
                 return {
                     itemIndex: idx,
                     product_id: item.product_id,
-                    product_name: item.product_name,
+                    product_name: h(item.product_name),
                     price: item.price,
                     width: item.width,
                     height: item.height,
@@ -701,8 +714,9 @@ function editFilterProducts() {
         filteredProducts.forEach(function(p) {
             var isSelected = editSelectedProducts.some(function(s) { return s.product_id === p.id; });
             html += '<div class="col-md-6 mb-2">';
-            html += '<div class="card ' + (isSelected ? 'border-primary' : '') + '" style="cursor:pointer" data-id="'+p.id+'" data-name="'+h(p.product_name)+'" data-price="'+p.price+'" data-w="'+(p.width||0)+'" data-h="'+(p.height||0)+'" onclick="editToggleProduct(this)">';
-            html += '<div class="card-body py-2"><div class="d-flex justify-content-between"><strong>' + p.product_name + '</strong>';
+            // 使用 data- 属性传递名称，在 JS 中读取，避免引号转义问题
+            html += '<div class="card ' + (isSelected ? 'border-primary' : '') + '" style="cursor:pointer" data-pid="' + p.id + '" data-pname="' + h(p.product_name) + '" data-price="' + p.price + '" data-w="' + (p.width||0) + '" data-h="' + (p.height||0) + '" onclick="editToggleProduct(this)">'
+            html += '<div class="card-body py-2"><div class="d-flex justify-content-between"><strong>' + h(p.product_name) + '</strong>';
             html += isSelected ? '<span class="badge bg-primary">已选</span>' : '';
             html += '</div>';
             html += '<small class="text-muted">' + (p.width||0) + 'x' + (p.height||0) + 'cm ¥' + p.price + '</small></div></div></div>';
@@ -713,18 +727,35 @@ function editFilterProducts() {
         var html = '<table class="table table-sm table-hover"><thead><tr><th>产品</th><th>尺寸</th><th>单价</th><th>操作</th></tr></thead><tbody>';
         filteredProducts.forEach(function(p) {
             var isSelected = editSelectedProducts.some(function(s) { return s.product_id === p.id; });
-            html += '<tr' + (isSelected ? ' class="table-primary"' : '') + ' style="cursor:pointer" data-id="'+p.id+'" data-name="'+h(p.product_name)+'" data-price="'+p.price+'" data-w="'+(p.width||0)+'" data-h="'+(p.height||0)+'" onclick="editToggleProduct(this)">';
-            html += '<td>' + p.product_name + '</td><td>' + (p.width||0) + 'x' + (p.height||0) + 'cm</td><td>¥' + p.price + '</td><td>' + (isSelected ? '✓ 已选' : '点击添加') + '</td></tr>';
+            html += '<tr' + (isSelected ? ' class="table-primary"' : '') + ' style="cursor:pointer" data-pid="' + p.id + '" data-pname="' + h(p.product_name) + '" data-price="' + p.price + '" data-w="' + (p.width||0) + '" data-h="' + (p.height||0) + '" onclick="editToggleProduct(this)">';
+            html += '<td>' + h(p.product_name) + '</td><td>' + (p.width||0) + 'x' + (p.height||0) + 'cm</td><td>¥' + p.price + '</td><td>' + (isSelected ? '✓ 已选' : '点击添加') + '</td></tr>';
         });
         html += '</tbody></table>';
         $('#editProductListArea').html(html);
     }
 }
 
-function editToggleProduct(a,b,c,d,e) {
-    var id,pid,pname,pp,pw,ph;
-    if(typeof a==='object'){var el=a;id=parseInt(el.dataset.id);pname=el.dataset.name;pp=parseFloat(el.dataset.price)||0;pw=parseFloat(el.dataset.w)||0;ph=parseFloat(el.dataset.h)||0;}
-    else{id=a;pname=b;pp=c;pw=d;ph=e;}
+// 编辑产品 - 支持从 data 属性或参数调用
+function editToggleProduct(idOrElement, name, price, w, h) {
+    // 判断是 DOM 元素还是参数
+    var id, pname, pprice, pw, ph;
+    if (typeof idOrElement === 'object' && idOrElement !== null) {
+        // 从 data 属性读取
+        var el = idOrElement;
+        id = parseInt(el.dataset.pid);
+        pname = el.dataset.pname;
+        pprice = parseFloat(el.dataset.price) || 0;
+        pw = parseFloat(el.dataset.w) || 0;
+        ph = parseFloat(el.dataset.h) || 0;
+    } else {
+        // 从参数读取
+        id = idOrElement;
+        pname = name;
+        pprice = price;
+        pw = w;
+        ph = h;
+    }
+    
     var unmodifiedIndex = -1;
     for (var i = 0; i < editSelectedProducts.length; i++) {
         if (editSelectedProducts[i].product_id === id) {
@@ -745,13 +776,13 @@ function editToggleProduct(a,b,c,d,e) {
             itemIndex: Date.now(),
             product_id: id,
             product_name: pname,
-            price: pp,
+            price: pprice,
             width: pw,
             height: ph,
             original_width: pw,
             original_height: ph,
             quantity: 1,
-            subtotal: pp,
+            subtotal: pprice,
             remark: ''
         });
     }
@@ -792,7 +823,7 @@ function editRenderSelectedProducts() {
             var remarkTitle = remark === '-' ? '' : 'title="' + remark.replace(/"/g, '&quot;') + '"';
             
             html += '<tr>';
-            html += '<td><strong>' + item.product_name + '</strong></td>';
+            html += '<td><strong>' + h(item.product_name) + '</strong></td>';
             html += '<td class="text-center">' + (item.width || 0) + ' cm</td>';
             html += '<td class="text-center">' + (item.height || 0) + ' cm</td>';
             html += '<td class="text-end">¥' + item.price.toFixed(2) + '</td>';
@@ -807,7 +838,7 @@ function editRenderSelectedProducts() {
         editSelectedProducts.forEach(function(item) {
             total += item.subtotal;
             html += '<div class="card mb-2"><div class="card-body py-2">';
-            html += '<div class="d-flex justify-content-between mb-2"><strong>' + item.product_name + '</strong>';
+            html += '<div class="d-flex justify-content-between mb-2"><strong>' + h(item.product_name) + '</strong>';
             html += '<button class="btn btn-sm btn-outline-danger" onclick="editRemoveProduct(' + item.itemIndex + ')">x</button></div>';
             html += '<div class="row g-1">';
             html += '<div class="col-3"><label class="small text-muted">宽(cm)</label><input type="number" class="form-control form-control-sm" value="' + (item.width || 0) + '" onchange="editUpdateWidth(' + item.itemIndex + ', this.value)"></div>';

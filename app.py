@@ -1,5 +1,5 @@
 # 客户管理系统主应用
-from flask import Flask, session
+from flask import Flask, session, request, make_response
 from flask_wtf import CSRFProtect
 from config import Config
 from models import db
@@ -10,6 +10,7 @@ from routes.order import order_bp
 from routes.system import system_bp
 from routes.auth import auth_bp
 from routes.stats import stats_bp
+from routes.biz import biz_bp
 from utils.errors import register_error_handlers
 from utils.security import register_jinja_filters
 import os
@@ -45,6 +46,7 @@ def create_app():
     app.register_blueprint(system_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(stats_bp)
+    app.register_blueprint(biz_bp)
     
     # 创建数据库表
     with app.app_context():

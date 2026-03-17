@@ -13,53 +13,6 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
     <script src="https://unpkg.com/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <style>
-        /* 主题变量 */
-        :root {
-            --bg-primary: #f5f6fa;
-            --bg-card: #ffffff;
-            --text-primary: #2c3e50;
-            --text-secondary: #6c757d;
-            --border-color: #dee2e6;
-            --shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        /* 暗色主题 */
-        [data-theme="dark"] {
-            --bg-primary: #1a1a2e;
-            --bg-card: #16213e;
-            --text-primary: #eaeaea;
-            --text-secondary: #adb5bd;
-            --border-color: #2d3748;
-            --shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        
-        [data-theme="dark"] body {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-        }
-        
-        [data-theme="dark"] .card,
-        [data-theme="dark"] .table-card,
-        [data-theme="dark"] .modal-content {
-            background-color: var(--bg-card);
-            border-color: var(--border-color);
-        }
-        
-        [data-theme="dark"] .form-control,
-        [data-theme="dark"] .form-select {
-            background-color: var(--bg-card);
-            border-color: var(--border-color);
-            color: var(--text-primary);
-        }
-        
-        [data-theme="dark"] .table {
-            color: var(--text-primary);
-        }
-        
-        [data-theme="dark"] .text-muted {
-            color: var(--text-secondary) !important;
-        }
-        
         /* Loading 骨架屏 */
         .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -68,9 +21,6 @@
             border-radius: 4px;
         }
         
-        [data-theme="dark"] .skeleton {
-            background: linear-gradient(90deg, #2d3748 25%, #3d4a5c 50%, #2d3748 75%);
-        }
         .skeleton-text {
             height: 16px;
             margin-bottom: 8px;
@@ -289,6 +239,129 @@
                 display: none !important;
             }
         }
+        
+        /* ==================== 增强移动端适配 ==================== */
+        
+        /* 移动端遮罩层 */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1040;
+        }
+        .sidebar-overlay.show {
+            display: block;
+        }
+        
+        /* 移动端侧边栏改进 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 220px;
+                height: 100vh;
+                position: fixed !important;
+                top: 0;
+                left: -220px;
+                z-index: 1050;
+                overflow-y: auto;
+            }
+            
+            .sidebar.show {
+                left: 0;
+            }
+            
+            /* 移动端弹窗全屏 */
+            .modal-dialog {
+                margin: 0;
+                max-width: 100%;
+            }
+            .modal-content {
+                min-height: 100vh;
+                border: none;
+                border-radius: 0;
+            }
+            
+            /* 移动端表格横向滚动 */
+            .table-responsive {
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* 移动端卡片 */
+            .card {
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            /* 移动端输入框 */
+            .form-control, .form-select {
+                height: 38px;
+            }
+            
+            /* 移动端按钮增大触摸区域 */
+            .btn {
+                min-height: 38px;
+                min-width: 38px;
+            }
+            
+            /* 移动端下拉菜单 */
+            .dropdown-menu {
+                max-height: 300px;
+                overflow-y: auto;
+            }
+            
+            /* 移动端搜索框 */
+            .search-box {
+                width: 100% !important;
+                margin-bottom: 10px;
+            }
+            
+            /* 移动端分页改进 */
+            .pagination {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            /* 移动端图标按钮 */
+            .btn-icon-sm {
+                padding: 6px;
+                min-width: 32px;
+                min-height: 32px;
+            }
+        }
+        
+        /* 超小屏幕 */
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 5px !important;
+            }
+            
+            .card {
+                margin-bottom: 8px;
+                padding: 10px;
+            }
+            
+            h1, h2, h3, h4, h5, h6 {
+                font-size: 1.1rem;
+            }
+            
+            .table {
+                font-size: 11px;
+            }
+        }
+        
+        /* 平板横屏 */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .sidebar {
+                width: 180px;
+            }
+            
+            .col-auto.col-md-3 {
+                width: 180px;
+            }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -413,6 +486,20 @@
                     </li>
                 </ul>
                 
+                <div class="menu-title" onclick="toggleMenu(this)" style="cursor:pointer">业务管理 <i class="bi bi-chevron-right float-end"></i></div>
+                <ul class="nav flex-column sub-menu" style="display:none">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/biz/generate' %}active{% endif %}" href="/biz/generate">
+                            <i class="bi bi-gear-wide-connected"></i> 生成制作
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/biz/force_edit' %}active{% endif %}" href="/biz/force_edit">
+                            <i class="bi bi-pencil-square"></i> 强制修改
+                        </a>
+                    </li>
+                </ul>
+                
                 <div class="menu-title" onclick="toggleMenu(this)" style="cursor:pointer">系统管理 <i class="bi bi-chevron-right float-end"></i></div>
                 <ul class="nav flex-column sub-menu" style="display:none">
                     <li class="nav-item">
@@ -453,15 +540,6 @@
                         </div>
                     </div>
                     <div class="d-grid gap-2">
-                        <!-- 主题切换按钮 -->
-                        <div class="btn-group btn-group-sm" role="group" aria-label="主题切换">
-                            <button type="button" class="btn btn-outline-light" id="themeLight" onclick="setTheme('light')" title="亮色主题">
-                                <i class="bi bi-sun"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-light" id="themeDark" onclick="setTheme('dark')" title="暗色主题">
-                                <i class="bi bi-moon"></i>
-                            </button>
-                        </div>
                         <a href="/profile" class="btn btn-outline-light btn-sm">
                             <i class="bi bi-person me-1"></i>个人中心
                         </a>
@@ -521,26 +599,41 @@
             });
         }
         
-        // 保留 alert 兼容性
-        function swalWarning(msg) {
-            swalWarning(msg);
-        }
+        // 添加移动端遮罩层
+        $('body').append('<div class="sidebar-overlay" onclick="toggleSidebar()"></div>');
         
         function toggleSidebar() {
-            $('#sidebar').toggleClass('collapsed');
-            $('#toggleIcon').toggleClass('bi-chevron-left bi-chevron-right');
+            var isMobile = window.innerWidth <= 768;
             
-            // 收起时隐藏文字，展开时显示
-            if ($('#sidebar').hasClass('collapsed')) {
-                $('.sidebar .nav-link').contents().filter(function() { return this.nodeType === 3 && this.textContent.trim(); }).hide();
+            if (isMobile) {
+                // 移动端：显示/隐藏侧边栏
+                $('#sidebar').toggleClass('show');
+                $('.sidebar-overlay').toggleClass('show');
             } else {
-                $('.sidebar .nav-link').contents().filter(function() { return this.nodeType === 3 && this.textContent.trim(); }).show();
+                // 桌面端：折叠/展开侧边栏
+                $('#sidebar').toggleClass('collapsed');
+                $('#toggleIcon').toggleClass('bi-chevron-left bi-chevron-right');
+                
+                // 收起时隐藏文字，展开时显示
+                if ($('#sidebar').hasClass('collapsed')) {
+                    $('.sidebar .nav-link').contents().filter(function() { return this.nodeType === 3 && this.textContent.trim(); }).hide();
+                } else {
+                    $('.sidebar .nav-link').contents().filter(function() { return this.nodeType === 3 && this.textContent.trim(); }).show();
+                }
+                
+                // 保存状态到 localStorage
+                var isCollapsed = $('#sidebar').hasClass('collapsed');
+                localStorage.setItem('sidebarCollapsed', isCollapsed);
             }
-            
-            // 保存状态到 localStorage
-            var isCollapsed = $('#sidebar').hasClass('collapsed');
-            localStorage.setItem('sidebarCollapsed', isCollapsed);
         }
+        
+        // 窗口大小变化时重置侧边栏状态
+        $(window).resize(function() {
+            if (window.innerWidth > 768) {
+                $('#sidebar').removeClass('show');
+                $('.sidebar-overlay').removeClass('show');
+            }
+        });
         
         // 页面加载时恢复状态（默认展开）
         $(function() {
