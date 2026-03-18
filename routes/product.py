@@ -338,7 +338,9 @@ def api_add():
             unit=data.get('unit', ''),
             description=data.get('description', ''),
             sales_status=data.get('sales_status', 0),
-            remark=data.get('remark', '')
+            remark=data.get('remark', ''),
+            free_shipping=data.get('free_shipping', 0),
+            product_type=data.get('product_type', '')
         )
         db.session.add(product)
         db.session.flush()  # 获取product.id
@@ -395,6 +397,8 @@ def api_edit(id):
         product.description = data.get('description', product.description)
         product.sales_status = data.get('sales_status', product.sales_status)
         product.remark = data.get('remark', product.remark)
+        product.free_shipping = data.get('free_shipping', product.free_shipping)
+        product.product_type = data.get('product_type', product.product_type or '')
         
         # 更新产品分类关联
         # 先删除旧的

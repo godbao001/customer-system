@@ -127,6 +127,17 @@
                                 <option value="1">是</option>
                             </select>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label">产品类型（影响生成制作分类）</label>
+                            <select class="form-select" id="productType">
+                                <option value="" selected>-- 请选择类型 --</option>
+                                <option value="传单">传单</option>
+                                <option value="门帘">门帘</option>
+                                <option value="拱门">拱门</option>
+                                <option value="收据发票">收据发票</option>
+                                <option value="其他特殊">其他特殊</option>
+                            </select>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">产品描述</label>
                             <textarea class="form-control" id="description" rows="2"></textarea>
@@ -255,8 +266,8 @@ function renderTable(data) {
             <td>${item.id}</td>
             <td><strong>${item.product_name}</strong></td>
             <td>${categoryHtml}</td>
-            <td>${item.width || '-'}</td>
-            <td>${item.height || '-'}</td>
+            <td>${item.width != null ? item.width : '-'}</td>
+            <td>${item.height != null ? item.height : '-'}</td>
             <td>¥${item.price.toFixed(2)}</td>
             <td>${item.unit || '-'}</td>
             <td>${salesStatusHtml}</td>
@@ -336,6 +347,7 @@ function editProduct(id) {
                 $('#unit').val(product.unit);
                 $('#salesStatus').val(product.sales_status);
                 $('#freeShipping').val(product.free_shipping || 0);
+                $('#productType').val(product.product_type || '');
                 $('#description').val(product.description);
                 $('#remark').val(product.remark);
                 
@@ -362,6 +374,7 @@ function saveProduct() {
         description: $('#description').val(),
         sales_status: parseInt($('#salesStatus').val()),
         free_shipping: parseInt($('#freeShipping').val()),
+        product_type: $('#productType').val(),
         remark: $('#remark').val(),
         categories: getSelectedCategories()
     };

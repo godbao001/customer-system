@@ -2,7 +2,7 @@
 from permissions import check_permission, ALL_PERMISSIONS
 
 from flask import Blueprint, render_template, request, jsonify, abort, session, redirect
-from models import db, Order, OrderItem, Shop
+from models import db, Order, OrderItem, Shop, ORDER_STATUS
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from datetime import datetime
@@ -33,6 +33,29 @@ def list():
 @check_permission('order_view')
 def list_by_status(status):
     return render_template('order/list.html', status=status)
+
+# 获取订单统计
+@order_bp.route('/api/stats')
+@check_permission('order_view')
+def api_stats():
+    """获取各类订单数量统计"""
+    # 全部订单（不含已删除）
+    total = Order.query.filter_by(is_deleted=0).count()
+    
+    # 各状态订单数量
+    stats = {}
+    for status, name in ORDER_STATUS.items():
+        count = Order.query.filter_by(status=status, is_deleted=0).count()
+        stats[status] = {'name': name, 'count': count}
+    
+    return jsonify({
+        'code': 0,
+        'msg': 'success',
+        'data': {
+            'total': total,
+            'stats': stats
+        }
+    })
 
 # 获取订单列表API
 @order_bp.route('/api/list')
@@ -292,12 +315,9 @@ def api_update_status(id):
         if new_status not in allowed_transitions.get(order.status, []):
             return jsonify({'code': 1, 'msg': '不能将状态从 {} 改为 {}'.format(order.status, new_status)})
         
-        # 确认付款时（状态2 -> 3），检查店铺是否有地址和电话
+        # 确认付款时（状态2 -> 3），检查订单快递信息是否有地址和电话
         if new_status == 3 and order.status == 2:
-            shop = Shop.query.get(order.shop_id)
-            if not shop:
-                return jsonify({'code': 1, 'msg': '店铺不存在'})
-            if not shop.address or not shop.phone:
+            if not order.express_shop_address or not order.express_shop_phone:
                 return jsonify({'code': 1, 'msg': '缺少地址或电话，无法确认付款'})
         
         # 保存原来的状态

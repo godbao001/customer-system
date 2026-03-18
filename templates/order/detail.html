@@ -3,12 +3,13 @@
 {% block title %}订单详情 - 客户管理系统{% endblock %}
 
 {% block content %}
+{% set back_url = request.args.get('back', '/shop/') %}
 <div class="content-header d-flex justify-content-between align-items-center">
     <h4 class="mb-0">
         <i class="bi bi-receipt me-2"></i>订单详情
     </h4>
     <div>
-        <a href="/shop/" class="btn btn-outline-secondary btn-sm" id="backBtn">
+        <a href="{{ back_url }}" class="btn btn-outline-secondary btn-sm" id="backBtn">
             <i class="bi bi-arrow-left"></i> 返回
         </a>
     </div>
@@ -123,18 +124,6 @@
                     <button class="btn btn-warning" onclick="updateStatus(3)">
                         <i class="bi bi-currency-yen"></i> 确认付款
                     </button>
-                    {% elif order.status == 3 %}
-                    <button class="btn btn-primary" onclick="updateStatus(4)">
-                        <i class="bi bi-box-seam"></i> 开始制作
-                    </button>
-                    {% elif order.status == 4 %}
-                    <button class="btn btn-info" onclick="updateStatus(5)">
-                        <i class="bi bi-truck"></i> 发货
-                    </button>
-                    {% elif order.status == 5 %}
-                    <button class="btn btn-success" onclick="updateStatus(6)">
-                        <i class="bi bi-bag-check"></i> 确认到货
-                    </button>
                     {% endif %}
                     {% if order.status in [1, 2] %}
                     <button class="btn btn-danger" onclick="deleteOrder()">
@@ -221,8 +210,12 @@ $(function() {
     var fromShop = urlParams.get('from_shop');
     var fromStatus = urlParams.get('from_status');
     var fromShopOrders = urlParams.get('from_shop_orders');
+    var backUrl = urlParams.get('back');
     
-    if (fromShopOrders === '1' && fromShop) {
+    // 如果有back参数，优先使用
+    if (backUrl) {
+        $('#backBtn').attr('href', backUrl);
+    } else if (fromShopOrders === '1' && fromShop) {
         // 从历史订单弹窗进入，设置返回按钮打开历史订单弹窗
         $('#backBtn').attr('href', 'javascript:void(0)');
         $('#backBtn').on('click', function() {

@@ -407,37 +407,37 @@
                 <ul class="nav flex-column sub-menu">
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/order/' %}active{% endif %}" href="/order/">
-                            <i class="bi bi-receipt"></i> 全部订单
+                            <i class="bi bi-receipt"></i> 全部订单 <span class="badge bg-primary" id="order-count-total">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/order/status/1' %}active{% endif %}" href="/order/status/1">
-                            <i class="bi bi-cart-plus"></i> 下单未确认
+                            <i class="bi bi-cart-plus"></i> 下单未确认 <span class="badge bg-secondary" id="order-count-1">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/order/status/2' %}active{% endif %}" href="/order/status/2">
-                            <i class="bi bi-check-circle"></i> 确认未付款
+                            <i class="bi bi-check-circle"></i> 确认未付款 <span class="badge bg-info" id="order-count-2">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/order/status/3' %}active{% endif %}" href="/order/status/3">
-                            <i class="bi bi-currency-yen"></i> 付款未制作
+                            <i class="bi bi-currency-yen"></i> 付款未制作 <span class="badge bg-primary" id="order-count-3">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/order/status/4' %}active{% endif %}" href="/order/status/4">
-                            <i class="bi bi-box-seam"></i> 制作未打包
+                            <i class="bi bi-box-seam"></i> 制作未打包 <span class="badge bg-warning" id="order-count-4">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/order/status/5' %}active{% endif %}" href="/order/status/5">
-                            <i class="bi bi-truck"></i> 发货未到货
+                            <i class="bi bi-truck"></i> 发货未到货 <span class="badge bg-info" id="order-count-5">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/order/status/6' %}active{% endif %}" href="/order/status/6">
-                            <i class="bi bi-bag-check"></i> 已到货
+                            <i class="bi bi-bag-check"></i> 已到货 <span class="badge bg-success" id="order-count-6">0</span>
                         </a>
                     </li>
                 </ul>
@@ -496,6 +496,16 @@
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/biz/force_edit' %}active{% endif %}" href="/biz/force_edit">
                             <i class="bi bi-pencil-square"></i> 强制修改
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/biz/package' %}active{% endif %}" href="/biz/package">
+                            <i class="bi bi-box-seam"></i> 订单打包
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/biz/records' %}active{% endif %}" href="/biz/records">
+                            <i class="bi bi-clock-history"></i> 生成记录
                         </a>
                     </li>
                 </ul>
@@ -738,6 +748,20 @@
 
 // 页面加载完成后，展开当前所在菜单
 document.addEventListener('DOMContentLoaded', function() {
+    // 加载订单统计
+    fetch('/order/api/stats', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                document.getElementById('order-count-total').textContent = data.data.total;
+                for (const [status, info] of Object.entries(data.data.stats)) {
+                    const el = document.getElementById('order-count-' + status);
+                    if (el) el.textContent = info.count;
+                }
+            }
+        })
+        .catch(() => {});
+    
     // 先隐藏所有菜单
     var allTitles = document.querySelectorAll('.menu-title');
     allTitles.forEach(function(title) {

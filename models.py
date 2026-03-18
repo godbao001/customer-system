@@ -151,6 +151,7 @@ class Product(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
     remark = db.Column(db.Text, comment='备注')
     free_shipping = db.Column(db.Integer, default=0, comment='是否包邮: 1=是, 0=否')
+    product_type = db.Column(db.String(50), comment='产品类型: 传单/门帘/拱门/收据发票/其他特殊')
     
     def to_dict(self, include_categories=False):
         result = {
@@ -169,7 +170,8 @@ class Product(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
             'remark': self.remark or '',
-            'free_shipping': self.free_shipping or 0
+            'free_shipping': self.free_shipping or 0,
+            'product_type': self.product_type or ''
         }
         if include_categories:
             # 获取产品的分类信息
@@ -206,10 +208,9 @@ ORDER_STATUS = {
     1: '下单未确认',
     2: '确认未付款',
     3: '付款未制作',
-    4: '制作为打包',
-    5: '打包未发货',
-    6: '发货未到货',
-    7: '已到货'
+    4: '制作未打包',
+    5: '发货未到货',
+    6: '已到货'
 }
 
 # 订单模型
@@ -220,7 +221,7 @@ class Order(db.Model):
     order_no = db.Column(db.String(50), nullable=False, unique=True, comment='订单号')
     shop_id = db.Column(db.Integer, nullable=False, comment='店铺ID')
     total_amount = db.Column(db.Numeric(10, 2), default=0.00, comment='订单总金额')
-    status = db.Column(db.Integer, default=1, comment='订单状态: 1=下单未确认, 2=确认未付款, 3=付款未制作, 4=制作为打包, 5=打包未发货, 6=发货未到货, 7=已到货')
+    status = db.Column(db.Integer, default=1, comment='订单状态: 1=下单未确认, 2=确认未付款, 3=付款未制作, 4=制作未打包, 5=发货未到货, 6=已到货')
     remark = db.Column(db.Text, comment='备注')
     free_shipping = db.Column(db.Integer, default=0, comment='是否包邮: 1=是, 0=否')
     is_deleted = db.Column(db.Integer, default=0, comment='是否删除: 0=未删除, 1=已删除')
@@ -508,5 +509,29 @@ class OperationLog(db.Model):
             'detail': self.detail or '',
             'ip': self.ip or '',
             'result': self.result,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+
+# 生成制作记录模型
+class GenerateRecord(db.Model):
+    __tablename__ = 'generate_records'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    filename = db.Column(db.String(255), nullable=False, comment='文件名')
+    file_path = db.Column(db.String(500), nullable=False, comment='文件路径')
+    order_count = db.Column(db.Integer, default=0, comment='订单数量')
+    total_amount = db.Column(db.Numeric(10, 2), default=0, comment='订单总金额')
+    created_by = db.Column(db.String(50), comment='操作人')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'filename': self.filename,
+            'file_path': self.file_path,
+            'order_count': self.order_count,
+            'total_amount': float(self.total_amount) if self.total_amount else 0,
+            'created_by': self.created_by or '',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }

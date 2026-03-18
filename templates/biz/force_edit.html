@@ -1,16 +1,447 @@
 {% extends "base.html" %}
 
-{% block title %}强制修改 - 客户管理系统{% endblock %}
+{% block title %}强制修改订单状态 - 客户管理系统{% endblock %}
 
 {% block content %}
 <div class="content-header">
-    <h4><i class="bi bi-pencil-square me-2"></i>强制修改</h4>
+    <h4><i class="bi bi-pencil-square me-2"></i>强制修改订单状态</h4>
 </div>
 
 <div class="table-card">
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
-        强制修改功能页面，内容待完善...
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>警告：</strong>此操作会无视业务规则直接修改订单状态，请谨慎操作！
     </div>
+    
+    <!-- 订单ID输入区域 -->
+    <div class="mb-4">
+        <label for="orderIdInput" class="form-label fw-bold">请输入订单ID：</label>
+        <div class="input-group" style="max-width: 400px;">
+            <input type="text" 
+                   class="form-control" 
+                   id="orderIdInput" 
+                   placeholder="输入数字ID查询订单"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value) { searchOrder(); } else { clearOrderInfo(); }">
+        </div>
+        <small class="text-muted">只能输入数字，输入后自动查询</small>
+    </div>
+    
+    <!-- 订单详情展示区域 -->
+    <div id="orderInfo" style="display: none;">
+        <hr>
+        <h5 class="mb-3">订单详情</h5>
+        
+        <div class="card mb-3">
+            <div class="card-body">
+                <!-- 第一行：基本信息 -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="p-2 bg-light rounded">
+                            <small class="text-muted d-block">订单ID</small>
+                            <strong id="infoId"></strong>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 bg-light rounded">
+                            <small class="text-muted d-block">订单号</small>
+                            <strong id="infoOrderNo"></strong>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 bg-light rounded">
+                            <small class="text-muted d-block">店铺名称</small>
+                            <strong id="infoShopName"></strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 第二行：金额和状态 -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="p-2 bg-light rounded">
+                            <small class="text-muted d-block">订单金额</small>
+                            <strong class="text-danger">¥<span id="infoTotalAmount"></span></strong>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 bg-light rounded">
+                            <small class="text-muted d-block">当前状态</small>
+                            <span id="infoStatus" class="badge bg-primary fs-6"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-2 bg-light rounded">
+                            <small class="text-muted d-block">备注</small>
+                            <span id="infoRemark"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 快递信息区域 -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="p-3 border rounded bg-white">
+                            <small class="text-muted fw-bold"><i class="bi bi-truck me-1"></i>快递配送信息</small>
+                            <hr class="my-2">
+                            <div class="row">
+                                <div class="col-md-3 mb-2">
+                                    <small class="text-muted d-block">快递方式</small>
+                                    <strong id="infoExpressMethod"></strong>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <small class="text-muted d-block">运费类型</small>
+                                    <strong id="infoExpressFeeType" class="badge"></strong>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <small class="text-muted d-block">快递费用</small>
+                                    <strong>¥<span id="infoExpressFee"></span></strong>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <small class="text-muted d-block">是否包邮</small>
+                                    <strong id="infoFreeShipping" class="badge"></strong>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6 mb-2">
+                                    <small class="text-muted d-block">门店地址</small>
+                                    <strong id="infoExpressAddress"></strong>
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <small class="text-muted d-block">门店电话</small>
+                                    <strong id="infoExpressPhone"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 订单状态时间线 -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="p-3 border rounded bg-light">
+                            <small class="text-muted fw-bold"><i class="bi bi-clock-history me-1"></i>订单状态时间</small>
+                            <hr class="my-2">
+                            <div class="row text-center">
+                                <div class="col">
+                                    <span class="badge bg-secondary" id="badgeOrderTime">① 下单</span><br>
+                                    <small id="infoOrderTime"></small>
+                                </div>
+                                <div class="col">
+                                    <span class="badge bg-secondary" id="badgeConfirmTime">② 确认</span><br>
+                                    <small id="infoConfirmTime"></small>
+                                </div>
+                                <div class="col">
+                                    <span class="badge bg-secondary" id="badgePayTime">③ 付款</span><br>
+                                    <small id="infoPayTime"></small>
+                                </div>
+                                <div class="col">
+                                    <span class="badge bg-secondary" id="badgeMakeTime">④ 制作</span><br>
+                                    <small id="infoMakeTime"></small>
+                                </div>
+                                <div class="col">
+                                    <span class="badge bg-secondary" id="badgePackTime">⑤ 打包</span><br>
+                                    <small id="infoPackTime"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 订单明细 -->
+                <div class="row">
+                    <div class="col-12">
+                        <small class="text-muted fw-bold"><i class="bi bi-box-seam me-1"></i>订单明细</small>
+                        <table class="table table-sm table-bordered mt-2">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>产品名称</th>
+                                    <th>单价</th>
+                                    <th>数量</th>
+                                    <th>规格</th>
+                                    <th>小计</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orderItemsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 强制修改状态区域（无订单时隐藏） -->
+        <div class="card" id="forceEditCard" style="display: none;">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-exclamation-octagon me-2"></i>强制修改订单状态</h6>
+                <div class="row align-items-end">
+                    <div class="col-md-4">
+                        <label for="statusSelect" class="form-label">选择新状态：</label>
+                        <select class="form-select" id="statusSelect">
+                            <option value="">-- 请选择状态 --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-danger" onclick="forceUpdateStatus()">
+                            <i class="bi bi-lightning-charge me-1"></i>强制修改
+                        </button>
+                    </div>
+                </div>
+                <div id="updateResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 无订单提示 -->
+    <div id="noOrder" class="alert alert-secondary" style="display: none;">
+        <i class="bi bi-info-circle me-2"></i>请输入订单ID进行查询
+    </div>
+    
+    <!-- 错误提示 -->
+    <div id="errorMsg" class="alert alert-danger" style="display: none;"></div>
 </div>
+
+<script>
+// 订单状态映射
+let orderStatusMap = {};
+
+// 页面加载完成后获取订单状态列表
+document.addEventListener('DOMContentLoaded', function() {
+    loadOrderStatuses();
+});
+
+// 加载订单状态列表
+async function loadOrderStatuses() {
+    try {
+        const response = await fetch('/biz/api/order_statuses');
+        const result = await response.json();
+        if (result.code === 0) {
+            const select = document.getElementById('statusSelect');
+            result.data.forEach(status => {
+                orderStatusMap[status.id] = status.name;
+                const option = document.createElement('option');
+                option.value = status.id;
+                option.textContent = status.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('加载订单状态失败:', error);
+    }
+}
+
+// 清空订单信息显示
+function clearOrderInfo() {
+    document.getElementById('orderInfo').style.display = 'none';
+    document.getElementById('noOrder').style.display = 'none';
+    document.getElementById('errorMsg').style.display = 'none';
+    document.getElementById('forceEditCard').style.display = 'none';
+    document.getElementById('updateResult').innerHTML = '';
+}
+
+// 查询订单
+async function searchOrder() {
+    const orderId = document.getElementById('orderIdInput').value.trim();
+    const orderInfo = document.getElementById('orderInfo');
+    const noOrder = document.getElementById('noOrder');
+    const errorMsg = document.getElementById('errorMsg');
+    const updateResult = document.getElementById('updateResult');
+    
+    // 重置状态
+    orderInfo.style.display = 'none';
+    noOrder.style.display = 'none';
+    errorMsg.style.display = 'none';
+    updateResult.innerHTML = '';
+    
+    // 输入框为空时不显示任何内容
+    if (!orderId) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/biz/api/order/${orderId}`);
+        const result = await response.json();
+        
+        if (result.code === 404) {
+            // 订单不存在，清空显示
+            orderInfo.style.display = 'none';
+            document.getElementById('forceEditCard').style.display = 'none';
+            errorMsg.textContent = result.msg;
+            errorMsg.style.display = 'block';
+            return;
+        }
+        
+        if (result.code !== 0) {
+            errorMsg.textContent = result.msg || '查询失败';
+            errorMsg.style.display = 'block';
+            document.getElementById('forceEditCard').style.display = 'none';
+            return;
+        }
+        
+        // 显示订单信息
+        const order = result.data;
+        
+        document.getElementById('infoId').textContent = order.id;
+        document.getElementById('infoOrderNo').textContent = order.order_no;
+        document.getElementById('infoShopName').textContent = order.shop_name;
+        document.getElementById('infoTotalAmount').textContent = order.total_amount.toFixed(2);
+        
+        const statusBadge = document.getElementById('infoStatus');
+        statusBadge.textContent = order.status_text;
+        // 根据状态设置不同颜色
+        const statusColors = {
+            1: 'bg-secondary',   // 下单未确认
+            2: 'bg-info',        // 确认未付款
+            3: 'bg-primary',     // 付款未制作
+            4: 'bg-warning',     // 制作未打包
+            5: 'bg-info',         // 发货未到货
+            6: 'bg-success'      // 已到货
+        };
+        statusBadge.className = `badge ${statusColors[order.status] || 'bg-secondary'}`;
+        
+        document.getElementById('infoRemark').textContent = order.remark || '(无)';
+        
+        // 快递信息
+        document.getElementById('infoExpressMethod').textContent = order.express_method || '(未设置)';
+        
+        const feeTypeEl = document.getElementById('infoExpressFeeType');
+        feeTypeEl.textContent = order.express_fee_type || '(未设置)';
+        feeTypeEl.className = order.express_fee_type === '到付' ? 'badge bg-warning' : 'badge bg-info';
+        
+        document.getElementById('infoExpressFee').textContent = (order.express_fee || 0).toFixed(2);
+        
+        const freeShippingEl = document.getElementById('infoFreeShipping');
+        if (order.free_shipping == 1) {
+            freeShippingEl.textContent = '包邮';
+            freeShippingEl.className = 'badge bg-success';
+        } else {
+            freeShippingEl.textContent = '不包邮';
+            freeShippingEl.className = 'badge bg-secondary';
+        }
+        
+        document.getElementById('infoExpressAddress').textContent = order.express_shop_address || '(未设置)';
+        document.getElementById('infoExpressPhone').textContent = order.express_shop_phone || '(未设置)';
+        
+        // 填充订单状态时间，并高亮当前状态
+        const status = order.status;
+        const timeBadges = {
+            1: 'badgeOrderTime',
+            2: 'badgeConfirmTime', 
+            3: 'badgePayTime',
+            4: 'badgeMakeTime',
+            5: 'badgePackTime'
+        };
+        
+        // 重置所有状态
+        ['badgeOrderTime', 'badgeConfirmTime', 'badgePayTime', 'badgeMakeTime', 'badgePackTime'].forEach(id => {
+            document.getElementById(id).className = 'badge bg-secondary';
+        });
+        
+        // 高亮当前状态
+        if (timeBadges[status]) {
+            const currentBadge = document.getElementById(timeBadges[status]);
+            if (status == 6) {
+                currentBadge.className = 'badge bg-success';  // 已到货
+            } else {
+                currentBadge.className = 'badge bg-primary';
+            }
+        }
+        
+        document.getElementById('infoOrderTime').textContent = order.order_time ? order.order_time.split(' ')[1]?.substring(0,8) || order.order_time : '-';
+        document.getElementById('infoConfirmTime').textContent = order.confirm_time ? order.confirm_time.split(' ')[1]?.substring(0,8) || order.confirm_time : '-';
+        document.getElementById('infoPayTime').textContent = order.pay_time ? order.pay_time.split(' ')[1]?.substring(0,8) || order.pay_time : '-';
+        document.getElementById('infoMakeTime').textContent = order.make_time ? order.make_time.split(' ')[1]?.substring(0,8) || order.make_time : '-';
+        document.getElementById('infoPackTime').textContent = order.pack_time ? order.pack_time.split(' ')[1]?.substring(0,8) || order.pack_time : '-';
+        
+        // 填充订单明细
+        const itemsBody = document.getElementById('orderItemsBody');
+        itemsBody.innerHTML = '';
+        if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.product_name || '(无)'}</td>
+                    <td>¥${item.price.toFixed(2)}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.width}×${item.height}</td>
+                    <td>¥${item.subtotal.toFixed(2)}</td>
+                `;
+                itemsBody.appendChild(tr);
+            });
+        } else {
+            itemsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">(无明细)</td></tr>';
+        }
+        
+        // 设置状态选择框默认值为当前状态
+        document.getElementById('statusSelect').value = order.status;
+        
+        // 显示订单详情和强制修改区域
+        orderInfo.style.display = 'block';
+        document.getElementById('forceEditCard').style.display = 'block';
+        
+    } catch (error) {
+        console.error('查询订单失败:', error);
+        errorMsg.textContent = '查询失败，请稍后重试';
+        errorMsg.style.display = 'block';
+        document.getElementById('forceEditCard').style.display = 'none';
+    }
+}
+
+// 强制修改订单状态
+async function forceUpdateStatus() {
+    const orderId = document.getElementById('orderIdInput').value.trim();
+    const newStatus = document.getElementById('statusSelect').value;
+    const updateResult = document.getElementById('updateResult');
+    
+    if (!orderId) {
+        updateResult.innerHTML = '<div class="alert alert-danger">订单ID不能为空</div>';
+        return;
+    }
+    
+    if (!newStatus) {
+        updateResult.innerHTML = '<div class="alert alert-warning">请选择新状态</div>';
+        return;
+    }
+    
+    if (!confirm(`确定要强制修改订单 #${orderId} 的状态吗？此操作不可恢复！`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/biz/api/force_update_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                order_id: parseInt(orderId),
+                status: parseInt(newStatus)
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 0) {
+            const oldText = result.data.old_status_text;
+            const newText = result.data.new_status_text;
+            
+            updateResult.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    ${result.msg}<br>
+                    <small>${oldText} → ${newText}</small>
+                </div>
+            `;
+            
+            // 刷新订单显示
+            searchOrder();
+        } else {
+            updateResult.innerHTML = `<div class="alert alert-danger">${result.msg}</div>`;
+        }
+        
+    } catch (error) {
+        console.error('修改状态失败:', error);
+        updateResult.innerHTML = '<div class="alert alert-danger">修改失败，请稍后重试</div>';
+    }
+}
+</script>
 {% endblock %}

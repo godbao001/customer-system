@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}生成制作记录 - 客户管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h4><i class="bi bi-clock-history me-2"></i>生成制作记录</h4>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover" id="recordsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>文件名</th>
+                    <th>订单数量</th>
+                    <th>订单金额</th>
+                    <th>操作人</th>
+                    <th>生成时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+    <!-- 分页 -->
+    <nav>
+        <ul class="pagination justify-content-center" id="pagination"></ul>
+    </nav>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+
+// 加载数据
+function loadData(page = 1) {
+    currentPage = page;
+    $.get('/biz/api/records', { page: page, limit: 20 }, function(res) {
+        if (res.code === 0) {
+            renderTable(res.data);
+            renderPagination(page, Math.ceil(res.count / 20));
+        }
+    });
+}
+
+function renderTable(data) {
+    const tbody = $('#recordsTable tbody');
+    tbody.html('');
+    
+    if (data.length === 0) {
+        tbody.html('<tr><td colspan="6" class="text-center text-muted py-4">暂无记录</td></tr>');
+        return;
+    }
+    
+    data.forEach(function(item) {
+        const row = `
+            <tr>
+                <td>${item.id}</td>
+                <td>${item.filename}</td>
+                <td>${item.order_count}</td>
+                <td>¥${item.total_amount.toFixed(2)}</td>
+                <td>${item.created_by || '-'}</td>
+                <td>${item.created_at}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="downloadRecord(${item.id}, '${item.filename}')">
+                        <i class="bi bi-download"></i> 下载
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.append(row);
+    });
+}
+
+function renderPagination(page, totalPages) {
+    const pagination = $('#pagination');
+    pagination.html('');
+    
+    if (totalPages <= 1) return;
+    
+    // 上一页
+    if (page > 1) {
+        pagination.append(`
+            <li class="page-item">
+                <a class="page-link" href="javascript:loadData(${page - 1})">上一页</a>
+            </li>
+        `);
+    }
+    
+    // 页码
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === page || (i >= page - 2 && i <= page + 2)) {
+            pagination.append(`
+                <li class="page-item ${i === page ? 'active' : ''}">
+                    <a class="page-link" href="javascript:loadData(${i})">${i}</a>
+                </li>
+            `);
+        } else if (i === page - 3 || i === page + 3) {
+            pagination.append('<li class="page-item disabled"><a class="page-link">...</a></li>');
+        }
+    }
+    
+    // 下一页
+    if (page < totalPages) {
+        pagination.append(`
+            <li class="page-item">
+                <a class="page-link" href="javascript:loadData(${page + 1})">下一页</a>
+            </li>
+        `);
+    }
+}
+
+function downloadRecord(id, filename) {
+    window.open(`/biz/api/records/${id}/download`, '_blank');
+}
+
+async function deleteRecord(id) {
+    const confirmed = await swalConfirm('确认删除这条记录？删除后无法恢复！');
+    if (!confirmed.isConfirmed) return;
+    
+    $.ajax({
+        url: `/biz/api/records/${id}`,
+        type: 'DELETE',
+        success: function(res) {
+            if (res.code === 0) {
+                swalSuccess('删除成功');
+                loadData(currentPage);
+            } else {
+                swalError(res.msg || '删除失败');
+            }
+        }
+    });
+}
+
+$(document).ready(function() {
+    loadData(1);
+});
+</script>
+{% endblock %}
